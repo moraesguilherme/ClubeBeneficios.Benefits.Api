@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -214,7 +214,7 @@ ORDER BY p.name;";
 
         return new BenefitFilterOptionsDto
         {
-Statuses = statusOptions,
+            Statuses = statusOptions,
             Directions = directionOptions,
             TargetActorTypes = targetActorOptions,
             EligibilityTypes = eligibilityOptions,
@@ -490,169 +490,83 @@ ORDER BY created_at DESC;";
     private static Guid? GetGuidValue(object source, string propertyName)
     {
         var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
-
-        if (value is null)
-            return null;
-
         if (value is Guid guid)
             return guid == Guid.Empty ? null : guid;
-
-        var valueType = value.GetType();
-        var underlyingType = Nullable.GetUnderlyingType(valueType);
-        if (underlyingType == typeof(Guid))
-        {
-            var boxed = (Guid?)value;
-            return boxed.HasValue && boxed.Value != Guid.Empty ? boxed.Value : null;
-        }
-
+        if (value is Guid? nullableGuid)
+            return nullableGuid.HasValue && nullableGuid.Value != Guid.Empty ? nullableGuid.Value : null;
         if (value is string text && Guid.TryParse(text, out var parsed))
             return parsed == Guid.Empty ? null : parsed;
-
         return null;
     }
 
     private static bool GetBoolValue(object source, string propertyName)
     {
         var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
-
-        if (value is null)
-            return false;
-
-        if (value is bool boolean)
-            return boolean;
-
-        var valueType = value.GetType();
-        var underlyingType = Nullable.GetUnderlyingType(valueType);
-        if (underlyingType == typeof(bool))
+        return value switch
         {
-            var boxed = (bool?)value;
-            return boxed ?? false;
-        }
-
-        if (value is string text && bool.TryParse(text, out var parsed))
-            return parsed;
-
-        return false;
+            bool b => b,
+            bool? nb when nb.HasValue => nb.Value,
+            string text when bool.TryParse(text, out var parsed) => parsed,
+            _ => false
+        };
     }
 
     private static int GetIntValue(object source, string propertyName, int fallback)
     {
         var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
-
-        if (value is null)
-            return fallback;
-
-        if (value is int integer)
-            return integer;
-
-        var valueType = value.GetType();
-        var underlyingType = Nullable.GetUnderlyingType(valueType);
-        if (underlyingType == typeof(int))
+        return value switch
         {
-            var boxed = (int?)value;
-            return boxed ?? fallback;
-        }
-
-        if (value is string text && int.TryParse(text, out var parsed))
-            return parsed;
-
-        return fallback;
+            int i => i,
+            int? ni when ni.HasValue => ni.Value,
+            string text when int.TryParse(text, out var parsed) => parsed,
+            _ => fallback
+        };
     }
 
     private static int? GetNullableIntValue(object source, string propertyName)
     {
         var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
-
-        if (value is null)
-            return null;
-
-        if (value is int integer)
-            return integer;
-
-        var valueType = value.GetType();
-        var underlyingType = Nullable.GetUnderlyingType(valueType);
-        if (underlyingType == typeof(int))
-            return (int?)value;
-
-        if (value is string text && int.TryParse(text, out var parsed))
-            return parsed;
-
-        return null;
+        return value switch
+        {
+            int i => i,
+            int? ni => ni,
+            string text when int.TryParse(text, out var parsed) => parsed,
+            _ => null
+        };
     }
 
     private static decimal? GetNullableDecimalValue(object source, string propertyName)
     {
         var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
-
-        if (value is null)
-            return null;
-
-        if (value is decimal dec)
-            return dec;
-
-        if (value is double dbl)
-            return Convert.ToDecimal(dbl);
-
-        if (value is float flt)
-            return Convert.ToDecimal(flt);
-
-        var valueType = value.GetType();
-        var underlyingType = Nullable.GetUnderlyingType(valueType);
-        if (underlyingType == typeof(decimal))
-            return (decimal?)value;
-
-        if (underlyingType == typeof(double))
+        return value switch
         {
-            var boxed = (double?)value;
-            return boxed.HasValue ? Convert.ToDecimal(boxed.Value) : null;
-        }
-
-        if (underlyingType == typeof(float))
-        {
-            var boxed = (float?)value;
-            return boxed.HasValue ? Convert.ToDecimal(boxed.Value) : null;
-        }
-
-        if (value is string text && decimal.TryParse(text, out var parsed))
-            return parsed;
-
-        return null;
+            decimal d => d,
+            decimal? nd => nd,
+            double dbl => Convert.ToDecimal(dbl),
+            string text when decimal.TryParse(text, out var parsed) => parsed,
+            _ => null
+        };
     }
 
     private static DateTime? GetNullableDateTimeValue(object source, string propertyName)
     {
         var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
-
-        if (value is null)
-            return null;
-
-        if (value is DateTime dt)
-            return dt;
-
-        var valueType = value.GetType();
-        var underlyingType = Nullable.GetUnderlyingType(valueType);
-        if (underlyingType == typeof(DateTime))
-            return (DateTime?)value;
-
-        if (value is string text && DateTime.TryParse(text, out var parsed))
-            return parsed;
-
-        return null;
+        return value switch
+        {
+            DateTime dt => dt,
+            DateTime? ndt => ndt,
+            string text when DateTime.TryParse(text, out var parsed) => parsed,
+            _ => null
+        };
     }
 
     private static IEnumerable<string> GetStringListValue(object source, string propertyName)
     {
         var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
-
-        if (value is IEnumerable<string> list)
-            return list;
-
-        if (value is string text)
-            return string.IsNullOrWhiteSpace(text)
-                ? Array.Empty<string>()
-                : text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        return Array.Empty<string>();
+        return value switch
+        {
+            IEnumerable<string> list => list,
+            _ => Array.Empty<string>()
+        };
     }
 }
-

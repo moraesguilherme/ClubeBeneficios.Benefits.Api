@@ -1,8 +1,9 @@
 using System;
+using System.Collections.Generic;
 
 namespace ClubeBeneficios.Benefits.Domain.Dtos;
 
-public class BenefitListItemDto
+public class BenefitDetailsDto
 {
     public Guid Id { get; set; }
     public Guid? PartnerId { get; set; }
@@ -16,21 +17,38 @@ public class BenefitListItemDto
 
     public string? Status { get; set; }
 
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
+    public string? InternalNotes { get; set; }
+
     public string? TargetActorType { get; set; }
     public string? TargetActorLabel { get; set; }
 
     public string? EligibilityType { get; set; }
     public string? EligibilitySummary { get; set; }
+    public IReadOnlyCollection<string> EligibilityChips { get; set; } = Array.Empty<string>();
+
+    public IReadOnlyCollection<BenefitLevelScopeDto> LevelScopes { get; set; } = Array.Empty<BenefitLevelScopeDto>();
+    public BenefitBehaviorRulesDto BehaviorRules { get; set; } = new();
+    public BenefitCodeRulesDto CodeRules { get; set; } = new();
 
     public string? RecurrenceType { get; set; }
+    public int? RecurrenceValue { get; set; }
     public string? RecurrencePeriod { get; set; }
     public string? RecurrenceLabel { get; set; }
 
     public string? ValidityType { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
     public string? ValidityLabel { get; set; }
 
-    public bool HighlightInShowcase { get; set; }
     public bool AutoActivateWhenApproved { get; set; }
+    public bool RequiresManualRelease { get; set; }
+    public bool HighlightInShowcase { get; set; }
+    public string? StackingRule { get; set; }
+
+    public string? ApprovalNotes { get; set; }
+    public string? RejectionReason { get; set; }
 
     public int RequestsCount { get; set; }
     public int UsagesCount { get; set; }

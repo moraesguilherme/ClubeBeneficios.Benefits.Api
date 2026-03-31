@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -214,7 +214,7 @@ ORDER BY p.name;";
 
         return new BenefitFilterOptionsDto
         {
-Statuses = statusOptions,
+            Statuses = statusOptions,
             Directions = directionOptions,
             TargetActorTypes = targetActorOptions,
             EligibilityTypes = eligibilityOptions,
@@ -655,4 +655,3 @@ ORDER BY created_at DESC;";
         return Array.Empty<string>();
     }
 }
-

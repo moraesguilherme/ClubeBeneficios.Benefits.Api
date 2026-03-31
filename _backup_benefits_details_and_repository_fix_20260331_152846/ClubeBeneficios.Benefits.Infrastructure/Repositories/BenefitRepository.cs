@@ -655,4 +655,3 @@ ORDER BY created_at DESC;";
         return Array.Empty<string>();
     }
 }
-

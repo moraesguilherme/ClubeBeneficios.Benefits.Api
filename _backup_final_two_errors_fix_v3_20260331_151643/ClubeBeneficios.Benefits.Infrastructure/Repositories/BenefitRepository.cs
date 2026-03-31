@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -655,4 +655,3 @@ ORDER BY created_at DESC;";
         return Array.Empty<string>();
     }
 }
-
