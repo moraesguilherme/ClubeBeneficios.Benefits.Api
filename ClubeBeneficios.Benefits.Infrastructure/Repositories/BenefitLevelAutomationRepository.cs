@@ -30,18 +30,9 @@ public class BenefitLevelAutomationRepository : IBenefitLevelAutomationRepositor
         return await _connection.QueryAsync<PartnerLevelAutomationResultDto>(command);
     }
 
-    public async Task<IEnumerable<ClientLevelAutomationResultDto>> RecalculateClientLevelsAsync(RecalculateClientLevelsRequest request, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<ClientLevelAutomationResultDto>> RecalculateClientLevelsAsync(RecalculateClientLevelsRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = new DynamicParameters();
-        parameters.Add("@user_id", request.UserId);
-        parameters.Add("@reference_date", request.ReferenceDate);
-
-        var command = new CommandDefinition(
-            "dbo.usp_client_levels_recalculate",
-            parameters,
-            commandType: CommandType.StoredProcedure,
-            cancellationToken: cancellationToken);
-
-        return await _connection.QueryAsync<ClientLevelAutomationResultDto>(command);
+        IEnumerable<ClientLevelAutomationResultDto> result = Array.Empty<ClientLevelAutomationResultDto>();
+        return Task.FromResult(result);
     }
 }
