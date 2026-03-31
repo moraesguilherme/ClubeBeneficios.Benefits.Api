@@ -477,7 +477,7 @@ ORDER BY created_at DESC;";
         parameters.Add(propertyName, value.Value);
     }
 
-    private async Task<SqlConnection> OpenConnectionAsync(CancellationToken cancellationToken)
+    private static async Task<SqlConnection> OpenConnectionAsync(CancellationToken cancellationToken)
     {
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
