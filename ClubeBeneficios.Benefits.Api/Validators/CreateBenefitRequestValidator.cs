@@ -39,7 +39,12 @@ public class CreateBenefitRequestValidator : AbstractValidator<CreateBenefitRequ
             .MaximumLength(300);
 
         RuleFor(x => x.EligibilityChips)
-            .MaximumLength(600);
+            .Must(chips => chips == null || chips.Count <= 12)
+            .WithMessage("É permitido informar no máximo 12 chips de elegibilidade.");
+
+        RuleForEach(x => x.EligibilityChips)
+            .NotEmpty()
+            .MaximumLength(80);
 
         RuleFor(x => x.RecurrenceType)
             .MaximumLength(40);
@@ -59,6 +64,6 @@ public class CreateBenefitRequestValidator : AbstractValidator<CreateBenefitRequ
 
         RuleFor(x => x)
             .Must(x => !x.StartsAt.HasValue || !x.EndsAt.HasValue || x.EndsAt.Value >= x.StartsAt.Value)
-            .WithMessage("A data final deve ser maior ou igual Ã  data inicial.");
+            .WithMessage("A data final deve ser maior ou igual à data inicial.");
     }
 }

@@ -14,8 +14,11 @@ public class BenefitLevelAutomationService : IBenefitLevelAutomationService
         _repository = repository;
     }
 
-    public Task<IEnumerable<PartnerLevelAutomationResultDto>> RecalculatePartnerLevelsAsync(RecalculatePartnerLevelsRequest request, CancellationToken cancellationToken = default)
-        => _repository.RecalculatePartnerLevelsAsync(request, cancellationToken);
+    public Task<IEnumerable<PartnerLevelAutomationResultDto>> RecalculatePartnerLevelsAsync(
+        RecalculatePartnerLevelsRequest request,
+        Guid? changedByUserId,
+        CancellationToken cancellationToken = default)
+        => _repository.RecalculatePartnerLevelsAsync(request, changedByUserId, cancellationToken);
 
     public Task<IEnumerable<ClientLevelAutomationResultDto>> RecalculateClientLevelsAsync(RecalculateClientLevelsRequest request, CancellationToken cancellationToken = default)
         => _repository.RecalculateClientLevelsAsync(request, cancellationToken);

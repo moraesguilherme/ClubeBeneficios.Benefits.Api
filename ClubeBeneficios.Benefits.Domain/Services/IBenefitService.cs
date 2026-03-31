@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using ClubeBeneficios.Benefits.Domain.Dtos;
 using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
@@ -9,6 +6,10 @@ namespace ClubeBeneficios.Benefits.Domain.Services;
 
 public interface IBenefitService
 {
+    // TODO: Criar camada específica para visão partner.
+    // Os métodos atuais atendem o fluxo administrativo.
+    // Antes de liberar a visão partner em produção, implementar métodos com filtro obrigatório por partnerId,
+    // incluindo listagem, resumo, filtros, detalhe, criação, edição e alteração de status dentro do escopo do parceiro autenticado.
     Task<PagedResultDto<BenefitListItemDto>> GetPagedAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default);

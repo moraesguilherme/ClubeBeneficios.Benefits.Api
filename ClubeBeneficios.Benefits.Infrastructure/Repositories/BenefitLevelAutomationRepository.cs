@@ -15,11 +15,14 @@ public class BenefitLevelAutomationRepository : IBenefitLevelAutomationRepositor
         _connection = connection;
     }
 
-    public async Task<IEnumerable<PartnerLevelAutomationResultDto>> RecalculatePartnerLevelsAsync(RecalculatePartnerLevelsRequest request, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<PartnerLevelAutomationResultDto>> RecalculatePartnerLevelsAsync(
+        RecalculatePartnerLevelsRequest request,
+        Guid? changedByUserId,
+        CancellationToken cancellationToken = default)
     {
         var parameters = new DynamicParameters();
-        parameters.Add("@partner_id", request.PartnerId);
-        parameters.Add("@reference_date", request.ReferenceDate);
+        parameters.Add("@PartnerId", request.PartnerId);
+        parameters.Add("@ChangedByUserId", changedByUserId);
 
         var command = new CommandDefinition(
             "dbo.usp_partner_levels_recalculate",

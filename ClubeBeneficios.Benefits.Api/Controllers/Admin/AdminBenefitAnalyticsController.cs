@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Services;
+using System.Security.Claims;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Admin;
 
@@ -75,19 +76,36 @@ public class AdminBenefitAnalyticsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("levels/partners/recalculate")]
+
+    [HttpPost("analytics/levels/partners/recalculate")]
     public async Task<IActionResult> RecalculatePartnerLevels(
         [FromBody] RecalculatePartnerLevelsRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _levelAutomationService.RecalculatePartnerLevelsAsync(request, cancellationToken);
+        var userIdValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst("sub")?.Value;
+
+        Guid? changedByUserId = null;
+        if (Guid.TryParse(userIdValue, out var parsedUserId))
+        {
+            changedByUserId = parsedUserId;
+        }
+
+        var result = await _levelAutomationService.RecalculatePartnerLevelsAsync(
+            request,
+            changedByUserId,
+            cancellationToken);
+
         return Ok(result);
     }
 
+    //migrar endpoint para o serviço de clientes
+
     [HttpPost("levels/clients/recalculate")]
     public async Task<IActionResult> RecalculateClientLevels(
-        [FromBody] RecalculateClientLevelsRequest request,
-        CancellationToken cancellationToken)
+            [FromBody] RecalculateClientLevelsRequest request,
+            CancellationToken cancellationToken)
     {
         var result = await _levelAutomationService.RecalculateClientLevelsAsync(request, cancellationToken);
         return Ok(result);
