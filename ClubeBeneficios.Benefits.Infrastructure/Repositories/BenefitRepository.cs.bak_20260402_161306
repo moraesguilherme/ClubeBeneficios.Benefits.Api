@@ -1,4 +1,4 @@
-﻿using System;
+﻿ï»¿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -24,7 +24,7 @@ public class BenefitRepository : IBenefitRepository
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? configuration.GetConnectionString("ClubeBeneficiosDb")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' ou 'ClubeBeneficiosDb' nÃ£o encontrada.");
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' ou 'ClubeBeneficiosDb' nÃƒÂ£o encontrada.");
     }
 
     public async Task<PagedResultDto<BenefitListItemDto>> GetPagedAsync(
@@ -55,26 +55,76 @@ SELECT
     b.title AS Title,
     b.benefit_type AS BenefitType,
     b.direction AS Direction,
-    b.direction_label AS DirectionLabel,
+    CASE
+        WHEN b.direction = 'partner_to_matilha' THEN 'Parceiro â†’ Cliente Matilha'
+        WHEN b.direction = 'matilha_to_partner' THEN 'Matilha â†’ Cliente do parceiro'
+        ELSE b.direction
+    END AS DirectionLabel,
     b.status AS Status,
     b.target_actor_type AS TargetActorType,
-    b.target_actor_label AS TargetActorLabel,
+    CASE
+        WHEN b.target_actor_type = 'client' THEN 'Cliente Matilha'
+        WHEN b.target_actor_type = 'partner_customer' THEN 'Cliente do parceiro'
+        ELSE b.target_actor_type
+    END AS TargetActorLabel,
     b.eligibility_type AS EligibilityType,
-    b.eligibility_summary AS EligibilitySummary,
-    b.recurrence_type AS RecurrenceType,
-    b.recurrence_period AS RecurrencePeriod,
-    b.recurrence_label AS RecurrenceLabel,
-    b.validity_type AS ValidityType,
-    b.validity_label AS ValidityLabel,
+    CASE
+        WHEN b.eligibility_type = 'open' THEN 'Elegibilidade aberta'
+        WHEN b.eligibility_type = 'level' THEN COALESCE(levels.level_codes, 'Elegibilidade por nÃ­vel')
+        WHEN b.eligibility_type = 'behavior' THEN COALESCE(NULLIF(br.custom_rule_text, ''), 'Elegibilidade por comportamento')
+        WHEN b.eligibility_type = 'code' THEN
+            CASE
+                WHEN cr.requires_access_code = 1 AND cr.allow_any_active_partner_code = 1 THEN 'CÃ³digo de parceiro ativo'
+                WHEN cr.requires_access_code = 1 AND cr.specific_access_code_id IS NOT NULL THEN 'CÃ³digo especÃ­fico'
+                WHEN cr.requires_access_code = 1 THEN 'Elegibilidade por cÃ³digo'
+                ELSE 'Elegibilidade por cÃ³digo'
+            END
+        WHEN b.eligibility_type = 'hybrid' THEN COALESCE(NULLIF(br.custom_rule_text, ''), levels.level_codes, 'Elegibilidade hÃ­brida')
+        ELSE b.eligibility_type
+    END AS EligibilitySummary,
+    bt.recurrence_type AS RecurrenceType,
+    bt.recurrence_period AS RecurrencePeriod,
+    CASE
+        WHEN bt.recurrence_type = 'once_per_customer' THEN '1x por cliente'
+        WHEN bt.recurrence_type = 'first_use_only' THEN 'Somente no 1Âº uso'
+        WHEN bt.recurrence_type = 'limited_per_period' AND bt.recurrence_value IS NOT NULL AND bt.recurrence_period IS NOT NULL
+            THEN CONCAT(bt.recurrence_value, 'x por ', bt.recurrence_period)
+        WHEN bt.recurrence_type = 'limited_per_period' AND bt.recurrence_value IS NOT NULL
+            THEN CONCAT(bt.recurrence_value, 'x no perÃ­odo')
+        WHEN bt.recurrence_type = 'unlimited_within_rule' THEN 'Ilimitado dentro da regra'
+        ELSE bt.recurrence_type
+    END AS RecurrenceLabel,
+    bt.validity_type AS ValidityType,
+    CASE
+        WHEN bt.validity_type = 'continuous' THEN 'ContÃ­nuo'
+        WHEN bt.validity_type = 'date_range' AND bt.starts_at IS NOT NULL AND bt.ends_at IS NOT NULL
+            THEN CONCAT(CONVERT(varchar(10), bt.starts_at, 103), ' atÃ© ', CONVERT(varchar(10), bt.ends_at, 103))
+        WHEN bt.validity_type = 'date_range' AND bt.ends_at IS NOT NULL
+            THEN CONCAT('AtÃ© ', CONVERT(varchar(10), bt.ends_at, 103))
+        WHEN bt.validity_type = 'date_range' AND bt.starts_at IS NOT NULL
+            THEN CONCAT('A partir de ', CONVERT(varchar(10), bt.starts_at, 103))
+        WHEN bt.validity_type = 'campaign_period' THEN 'PerÃ­odo de campanha'
+        WHEN bt.validity_type = 'until_stock' THEN 'AtÃ© durar o estoque'
+        ELSE bt.validity_type
+    END AS ValidityLabel,
     b.highlight_in_showcase AS HighlightInShowcase,
-    b.auto_activate_when_approved AS AutoActivateWhenApproved,
+    bt.auto_activate_when_approved AS AutoActivateWhenApproved,
     b.requests_count AS RequestsCount,
     b.usages_count AS UsagesCount,
-    b.conversion_rate AS ConversionRate,
+    CAST(ROUND(ISNULL(b.conversion_rate, 0), 0) AS int) AS ConversionRate,
     b.partner_level AS PartnerLevel,
     b.created_at AS CreatedAt,
     b.updated_at AS UpdatedAt
 FROM dbo.vw_benefits_admin_list b
+INNER JOIN dbo.benefits bt ON bt.id = b.id
+OUTER APPLY
+(
+    SELECT STRING_AGG(bls.level_code, ', ') AS level_codes
+    FROM dbo.benefit_level_scopes bls
+    WHERE bls.benefit_id = b.id
+) levels
+LEFT JOIN dbo.benefit_behavior_rules br ON br.benefit_id = b.id
+LEFT JOIN dbo.benefit_code_rules cr ON cr.benefit_id = b.id
 {where}
 ORDER BY b.created_at DESC
 OFFSET @OffsetRows ROWS FETCH NEXT @FetchRows ROWS ONLY;";
@@ -120,29 +170,54 @@ SELECT
     b.title AS Title,
     b.benefit_type AS BenefitType,
     b.direction AS Direction,
-    b.direction_label AS DirectionLabel,
-    b.status AS Status,
-    b.approval_stage AS ApprovalStage,
-    b.target_actor_type AS TargetActorType,
-    b.target_actor_label AS TargetActorLabel,
-    b.eligibility_summary AS EligibilitySummary,
-    b.recurrence_label AS RecurrenceLabel,
-    b.validity_label AS ValidityLabel,
-    b.auto_activate_when_approved AS AutoActivateWhenApproved,
-    b.requires_manual_release AS RequiresManualRelease,
-    b.highlight_in_showcase AS HighlightInShowcase,
-    b.stacking_rule AS StackingRule,
-    b.approval_notes AS ApprovalNotes,
-    b.rejection_reason AS RejectionReason,
-    b.requests_count AS RequestsCount,
-    b.usages_count AS UsagesCount,
-    b.conversion_rate AS ConversionRate,
-    b.partner_level AS PartnerLevel,
-    b.created_at AS CreatedAt,
-    b.updated_at AS UpdatedAt
+    CASE
+        WHEN b.direction = 'partner_to_matilha' THEN 'Parceiro â†’ Cliente Matilha'
+        WHEN b.direction = 'matilha_to_partner' THEN 'Matilha â†’ Cliente do parceiro'
+        ELSE b.direction
+    END AS DirectionLabel,
+    bt.status AS Status,
+    COALESCE(b.latest_review_status, bt.status) AS ApprovalStage,
+    bt.target_actor_type AS TargetActorType,
+    CASE
+        WHEN bt.target_actor_type = 'client' THEN 'Cliente Matilha'
+        WHEN bt.target_actor_type = 'partner_customer' THEN 'Cliente do parceiro'
+        ELSE bt.target_actor_type
+    END AS TargetActorLabel,
+    bt.eligibility_type AS EligibilityType,
+    CASE
+        WHEN bt.eligibility_type = 'open' THEN 'Elegibilidade aberta'
+        WHEN bt.eligibility_type = 'level' THEN COALESCE(levels.level_codes, 'Elegibilidade por nÃ­vel')
+        WHEN bt.eligibility_type = 'behavior' THEN COALESCE(NULLIF(br.custom_rule_text, ''), 'Elegibilidade por comportamento')
+        WHEN bt.eligibility_type = 'code' THEN
+            CASE
+                WHEN cr.requires_access_code = 1 AND cr.allow_any_active_partner_code = 1 THEN 'CÃ³digo de parceiro ativo'
+                WHEN cr.requires_access_code = 1 AND cr.specific_access_code_id IS NOT NULL THEN 'CÃ³digo especÃ­fico'
+                WHEN cr.requires_access_code = 1 THEN 'Elegibilidade por cÃ³digo'
+                ELSE 'Elegibilidade por cÃ³digo'
+            END
+        WHEN bt.eligibility_type = 'hybrid' THEN COALESCE(NULLIF(br.custom_rule_text, ''), levels.level_codes, 'Elegibilidade hÃ­brida')
+        ELSE bt.eligibility_type
+    END AS EligibilitySummary,
+    bt.auto_activate_when_approved AS AutoActivateWhenApproved,
+    bt.requires_manual_release AS RequiresManualRelease,
+    bt.highlight_in_showcase AS HighlightInShowcase,
+    b.review_point AS LastReviewType,
+    b.review_recommendation AS LastReviewNotes,
+    b.reviewed_at AS LastReviewedAt,
+    bt.created_at AS CreatedAt,
+    bt.updated_at AS UpdatedAt
 FROM dbo.vw_benefits_pending_list b
+INNER JOIN dbo.benefits bt ON bt.id = b.id
+OUTER APPLY
+(
+    SELECT STRING_AGG(bls.level_code, ', ') AS level_codes
+    FROM dbo.benefit_level_scopes bls
+    WHERE bls.benefit_id = b.id
+) levels
+LEFT JOIN dbo.benefit_behavior_rules br ON br.benefit_id = b.id
+LEFT JOIN dbo.benefit_code_rules cr ON cr.benefit_id = b.id
 {where}
-ORDER BY b.created_at DESC
+ORDER BY bt.created_at DESC
 OFFSET @OffsetRows ROWS FETCH NEXT @FetchRows ROWS ONLY;";
 
         using var connection = await OpenConnectionAsync(cancellationToken);
@@ -199,9 +274,9 @@ FROM dbo.benefits
 WHERE eligibility_type IS NOT NULL
 ORDER BY eligibility_type;
 
-SELECT p.id AS Value, p.name AS Label
+SELECT p.id AS Value, p.trade_name AS Label
 FROM dbo.partners p
-ORDER BY p.name;";
+ORDER BY p.trade_name;";
 
         using var connection = await OpenConnectionAsync(cancellationToken);
         using var multi = await connection.QueryMultipleAsync(new CommandDefinition(sql, cancellationToken: cancellationToken));
@@ -228,7 +303,7 @@ Statuses = statusOptions,
 SELECT TOP (1)
     b.id AS Id,
     b.partner_id AS PartnerId,
-    p.name AS PartnerName,
+    p.trade_name AS PartnerName,
     b.title AS Title,
     b.benefit_type AS BenefitType,
     b.direction AS Direction,
@@ -238,13 +313,26 @@ SELECT TOP (1)
     b.full_description AS FullDescription,
     b.internal_notes AS InternalNotes,
     b.eligibility_type AS EligibilityType,
-    b.eligibility_summary AS EligibilitySummary,
+    CASE
+        WHEN b.eligibility_type = 'open' THEN 'Elegibilidade aberta'
+        WHEN b.eligibility_type = 'level' THEN COALESCE(levels.level_codes, 'Elegibilidade por nÃ­vel')
+        WHEN b.eligibility_type = 'behavior' THEN COALESCE(NULLIF(br.custom_rule_text, ''), 'Elegibilidade por comportamento')
+        WHEN b.eligibility_type = 'code' THEN
+            CASE
+                WHEN cr.requires_access_code = 1 AND cr.allow_any_active_partner_code = 1 THEN 'CÃ³digo de parceiro ativo'
+                WHEN cr.requires_access_code = 1 AND cr.specific_access_code_id IS NOT NULL THEN 'CÃ³digo especÃ­fico'
+                WHEN cr.requires_access_code = 1 THEN 'Elegibilidade por cÃ³digo'
+                ELSE 'Elegibilidade por cÃ³digo'
+            END
+        WHEN b.eligibility_type = 'hybrid' THEN COALESCE(NULLIF(br.custom_rule_text, ''), levels.level_codes, 'Elegibilidade hÃ­brida')
+        ELSE b.eligibility_type
+    END AS EligibilitySummary,
     b.recurrence_type AS RecurrenceType,
-    b.recurrence_value AS RecurrenceValue,
+    b.recurrence_value AS RecurrenceLimit,
     b.recurrence_period AS RecurrencePeriod,
     b.validity_type AS ValidityType,
-    b.starts_at AS StartsAt,
-    b.ends_at AS EndsAt,
+    b.starts_at AS ValidFrom,
+    b.ends_at AS ValidUntil,
     b.auto_activate_when_approved AS AutoActivateWhenApproved,
     b.requires_manual_release AS RequiresManualRelease,
     b.highlight_in_showcase AS HighlightInShowcase,
@@ -253,12 +341,20 @@ SELECT TOP (1)
     b.updated_at AS UpdatedAt
 FROM dbo.benefits b
 LEFT JOIN dbo.partners p ON p.id = b.partner_id
+OUTER APPLY
+(
+    SELECT STRING_AGG(bls.level_code, ', ') AS level_codes
+    FROM dbo.benefit_level_scopes bls
+    WHERE bls.benefit_id = b.id
+) levels
+LEFT JOIN dbo.benefit_behavior_rules br ON br.benefit_id = b.id
+LEFT JOIN dbo.benefit_code_rules cr ON cr.benefit_id = b.id
 WHERE b.id = @Id;
 
-SELECT TOP (1)
+SELECT
     id AS Id,
     level_type AS LevelType,
-    allowed_levels_csv AS LevelCode
+    level_code AS LevelCode
 FROM dbo.benefit_level_scopes
 WHERE benefit_id = @Id
 ORDER BY created_at DESC;
@@ -293,9 +389,10 @@ ORDER BY created_at DESC;";
         if (dto is null)
             return null;
 
-        dto.LevelScope = await multi.ReadFirstOrDefaultAsync<BenefitLevelScopeDto>();
+        dto.LevelScopes = (await multi.ReadAsync<BenefitLevelScopeDto>()).ToList();
         dto.BehaviorRules = await multi.ReadFirstOrDefaultAsync<BenefitBehaviorRulesDto>();
         dto.CodeRules = await multi.ReadFirstOrDefaultAsync<BenefitCodeRulesDto>();
+        dto.EligibilityChips = BuildEligibilityChips(dto);
         return dto;
     }
 
@@ -376,6 +473,8 @@ ORDER BY created_at DESC;";
     {
         var parameters = new DynamicParameters();
         FillSharedParameters(parameters, request);
+        parameters.Add("InitialStatus", BenefitContractMapper.NormalizeStatus(GetStringValue(request, "Status")));
+        parameters.Add("CreatedByUserId", GetGuidValue(request, "CreatedByUserId"));
         return parameters;
     }
 
@@ -383,6 +482,7 @@ ORDER BY created_at DESC;";
     {
         var parameters = new DynamicParameters();
         FillSharedParameters(parameters, request);
+        parameters.Add("UpdatedByUserId", GetGuidValue(request, "UpdatedByUserId"));
         return parameters;
     }
 
@@ -396,20 +496,17 @@ ORDER BY created_at DESC;";
         parameters.Add("ShortDescription", GetStringValue(request, "ShortDescription"));
         parameters.Add("FullDescription", GetStringValue(request, "FullDescription"));
         parameters.Add("InternalNotes", GetStringValue(request, "InternalNotes"));
-        parameters.Add("Status", BenefitContractMapper.NormalizeStatus(GetStringValue(request, "Status")));
         parameters.Add("EligibilityType", BenefitContractMapper.NormalizeEligibilityType(GetStringValue(request, "EligibilityType")));
-        parameters.Add("EligibilitySummary", BenefitContractMapper.BuildEligibilitySummary(request));
-        parameters.Add("EligibilityChipsCsv", BenefitContractMapper.JoinList(GetStringListValue(request, "EligibilityChips")));
         parameters.Add("LevelType", GetStringValue(request, "LevelType"));
-        parameters.Add("AllowedLevelsCsv", BenefitContractMapper.JoinList(GetStringListValue(request, "AllowedLevels")));
+        parameters.Add("LevelCodesCsv", BenefitContractMapper.JoinList(GetStringListValue(request, "AllowedLevels")));
         parameters.Add("MinFrequencyEnabled", GetBoolValue(request, "MinFrequencyEnabled"));
         parameters.Add("MinFrequencyValue", GetNullableIntValue(request, "MinFrequencyValue"));
         parameters.Add("FrequencyWindowMonths", GetNullableIntValue(request, "FrequencyWindowMonths"));
         parameters.Add("MinTicketEnabled", GetBoolValue(request, "MinTicketEnabled"));
         parameters.Add("MinTicketValue", GetNullableDecimalValue(request, "MinTicketValue"));
         parameters.Add("TicketWindowMonths", GetNullableIntValue(request, "TicketWindowMonths"));
-        parameters.Add("FirstUseOnly", GetBoolValue(request, "FirstUseOnly"));
-        parameters.Add("RequiresMatilhaApproval", GetBoolValue(request, "RequiresMatilhaApproval"));
+        parameters.Add("BehaviorFirstUseOnly", GetBoolValue(request, "FirstUseOnly"));
+        parameters.Add("BehaviorRequiresMatilhaApproval", GetBoolValue(request, "RequiresMatilhaApproval"));
         parameters.Add("CustomRuleText", GetStringValue(request, "CustomRuleText"));
         parameters.Add("RequiresAccessCode", GetBoolValue(request, "RequiresAccessCode"));
         parameters.Add("AllowAnyActivePartnerCode", GetBoolValue(request, "AllowAnyActivePartnerCode"));
@@ -431,7 +528,7 @@ ORDER BY created_at DESC;";
     {
         AddLikeFilter(filter, where, parameters, "Search", "b.title");
         AddStringFilter(filter, where, parameters, "Status", "b.status", normalizeStatus: true);
-        AddStringFilter(filter, where, parameters, "Direction", "b.direction");
+        AddStringFilter(filter, where, parameters, "Origin", "b.direction");
         AddStringFilter(filter, where, parameters, "TargetActorType", "b.target_actor_type");
         AddStringFilter(filter, where, parameters, "EligibilityType", "b.eligibility_type");
         AddGuidFilter(filter, where, parameters, "PartnerId", "b.partner_id");
@@ -450,7 +547,7 @@ ORDER BY created_at DESC;";
         if (string.IsNullOrWhiteSpace(value))
             return;
 
-        where.Append($" AND {columnName} LIKE @{propertyName} ");
+        where.Append($" AND ({columnName} LIKE @{propertyName} OR ISNULL(b.partner_name, '') LIKE @{propertyName} OR ISNULL(b.benefit_type, '') LIKE @{propertyName}) ");
         parameters.Add(propertyName, $"%{value.Trim()}%");
     }
 
@@ -655,4 +752,39 @@ ORDER BY created_at DESC;";
         return Array.Empty<string>();
     }
 }
+    private static List<string> BuildEligibilityChips(BenefitDetailsDto dto)
+    {
+        var chips = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(dto.EligibilitySummary))
+        {
+            chips.AddRange(dto.EligibilitySummary
+                .Split(',', ';', '|')
+                .Select(item => item.Trim())
+                .Where(item => !string.IsNullOrWhiteSpace(item)));
+        }
+
+        if (dto.LevelScopes is not null)
+        {
+            chips.AddRange(dto.LevelScopes
+                .Select(scope => scope.LevelCode)
+                .Where(code => !string.IsNullOrWhiteSpace(code))!
+                .Select(code => code!.Trim()));
+        }
+
+        if (dto.BehaviorRules?.FirstUseOnly == true)
+            chips.Add("1Âº uso");
+
+        if (dto.BehaviorRules?.RequiresMatilhaApproval == true)
+            chips.Add("AprovaÃ§Ã£o Matilha");
+
+        if (dto.CodeRules?.RequiresAccessCode == true)
+            chips.Add("CÃ³digo vÃ¡lido");
+
+        return chips
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
 

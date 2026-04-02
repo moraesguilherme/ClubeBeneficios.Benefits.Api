@@ -20,39 +20,39 @@ public class BenefitLookupRepository : IBenefitLookupRepository
         parameters.Add("@partner_id", partnerId);
 
         var statuses = await QueryValuesAsync(@"
-select distinct b.status
-from dbo.benefits b
-where b.status is not null
-  and (@partner_id is null or b.partner_id = @partner_id)
-order by b.status;", parameters, cancellationToken);
+                                                select distinct b.status
+                                                from dbo.benefits b
+                                                where b.status is not null
+                                                  and (@partner_id is null or b.partner_id = @partner_id)
+                                                order by b.status;", parameters, cancellationToken);
 
         var directions = await QueryValuesAsync(@"
-select distinct b.direction
-from dbo.benefits b
-where b.direction is not null
-  and (@partner_id is null or b.partner_id = @partner_id)
-order by b.direction;", parameters, cancellationToken);
+                                                select distinct b.direction
+                                                from dbo.benefits b
+                                                where b.direction is not null
+                                                  and (@partner_id is null or b.partner_id = @partner_id)
+                                                order by b.direction;", parameters, cancellationToken);
 
         var targetActorTypes = await QueryValuesAsync(@"
-select distinct b.target_actor_type
-from dbo.benefits b
-where b.target_actor_type is not null
-  and (@partner_id is null or b.partner_id = @partner_id)
-order by b.target_actor_type;", parameters, cancellationToken);
+                                                        select distinct b.target_actor_type
+                                                        from dbo.benefits b
+                                                        where b.target_actor_type is not null
+                                                          and (@partner_id is null or b.partner_id = @partner_id)
+                                                        order by b.target_actor_type;", parameters, cancellationToken);
 
         var eligibilityTypes = await QueryValuesAsync(@"
-select distinct b.eligibility_type
-from dbo.benefits b
-where b.eligibility_type is not null
-  and (@partner_id is null or b.partner_id = @partner_id)
-order by b.eligibility_type;", parameters, cancellationToken);
+                                                        select distinct b.eligibility_type
+                                                        from dbo.benefits b
+                                                        where b.eligibility_type is not null
+                                                          and (@partner_id is null or b.partner_id = @partner_id)
+                                                        order by b.eligibility_type;", parameters, cancellationToken);
 
         var recurrencePeriods = await QueryValuesAsync(@"
-select distinct b.recurrence_period
-from dbo.benefits b
-where b.recurrence_period is not null
-  and (@partner_id is null or b.partner_id = @partner_id)
-order by b.recurrence_period;", parameters, cancellationToken);
+                                                        select distinct b.recurrence_period
+                                                        from dbo.benefits b
+                                                        where b.recurrence_period is not null
+                                                          and (@partner_id is null or b.partner_id = @partner_id)
+                                                        order by b.recurrence_period;", parameters, cancellationToken);
 
         return new BenefitLookupOptionsDto
         {

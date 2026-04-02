@@ -1,7 +1,6 @@
 using System.Data;
 using Dapper;
 using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Repositories;
 
@@ -21,28 +20,28 @@ public class BenefitUsageRepository : IBenefitUsageRepository
         var createdId = Guid.NewGuid();
 
         const string sql = @"
-insert into dbo.benefit_usages
-(
-    id, benefit_request_id, benefit_id, partner_id,
-    used_by_user_id, used_by_partner_customer_id, used_by_type,
-    pet_id, usage_status, used_at,
-    confirmed_by_partner_user_id, confirmed_by_admin_user_id,
-    monetary_value, discount_value,
-    snapshot_title, snapshot_partner_name, snapshot_rule_summary,
-    created_at, updated_at
-)
-values
-(
-    @id, @benefit_request_id, @benefit_id, @partner_id,
-    @used_by_user_id, @used_by_partner_customer_id, @used_by_type,
-    @pet_id, 'used', @used_at,
-    case when @performed_by_partner = 1 then @performed_by_user_id else null end,
-    case when @performed_by_partner = 1 then null else @performed_by_user_id end,
-    @monetary_value, @discount_value,
-    @snapshot_title, @snapshot_partner_name, @snapshot_rule_summary,
-    sysutcdatetime(), sysutcdatetime()
-);
-";
+                            insert into dbo.benefit_usages
+                            (
+                                id, benefit_request_id, benefit_id, partner_id,
+                                used_by_user_id, used_by_partner_customer_id, used_by_type,
+                                pet_id, usage_status, used_at,
+                                confirmed_by_partner_user_id, confirmed_by_admin_user_id,
+                                monetary_value, discount_value,
+                                snapshot_title, snapshot_partner_name, snapshot_rule_summary,
+                                created_at, updated_at
+                            )
+                            values
+                            (
+                                @id, @benefit_request_id, @benefit_id, @partner_id,
+                                @used_by_user_id, @used_by_partner_customer_id, @used_by_type,
+                                @pet_id, 'used', @used_at,
+                                case when @performed_by_partner = 1 then @performed_by_user_id else null end,
+                                case when @performed_by_partner = 1 then null else @performed_by_user_id end,
+                                @monetary_value, @discount_value,
+                                @snapshot_title, @snapshot_partner_name, @snapshot_rule_summary,
+                                sysutcdatetime(), sysutcdatetime()
+                            );
+                            ";
 
         await _connection.ExecuteAsync(
             new CommandDefinition(
@@ -72,21 +71,21 @@ values
         return createdId;
     }
 
-    public Task CancelAsync(Guid usageId, CancelBenefitUsageRequest request, Guid? performedByUserId, CancellationToken cancellationToken = default)
+    public async Task CancelAsync(Guid usageId, CancelBenefitUsageRequest request, Guid? performedByUserId, CancellationToken cancellationToken = default)
     {
         const string sql = @"
-update dbo.benefit_usages
-set
-    usage_status = 'cancelled',
-    snapshot_rule_summary = case
-        when @cancellation_reason is null then snapshot_rule_summary
-        else concat(isnull(snapshot_rule_summary, ''), ' | Cancelado: ', @cancellation_reason)
-    end,
-    updated_at = sysutcdatetime()
-where id = @benefit_usage_id;
-";
+                            update dbo.benefit_usages
+                            set
+                                usage_status = 'cancelled',
+                                snapshot_rule_summary = case
+                                    when @cancellation_reason is null then snapshot_rule_summary
+                                    else concat(isnull(snapshot_rule_summary, ''), ' | Cancelado: ', @cancellation_reason)
+                                end,
+                                updated_at = sysutcdatetime()
+                            where id = @benefit_usage_id;
+                            ";
 
-        return _connection.ExecuteAsync(
+        await _connection.ExecuteAsync(
             new CommandDefinition(
                 sql,
                 new
@@ -102,29 +101,29 @@ where id = @benefit_usage_id;
     public Task<BenefitUsageDetailDto?> GetByIdAsync(Guid usageId, CancellationToken cancellationToken = default)
     {
         const string sql = @"
-select top 1
-    bu.id as Id,
-    bu.benefit_id as BenefitId,
-    bu.benefit_request_id as BenefitRequestId,
-    bu.partner_id as PartnerId,
-    bu.used_by_user_id as UsedByUserId,
-    bu.used_by_partner_customer_id as UsedByPartnerCustomerId,
-    bu.used_by_type as UsedByType,
-    bu.pet_id as PetId,
-    bu.usage_status as UsageStatus,
-    bu.used_at as UsedAt,
-    bu.confirmed_by_partner_user_id as ConfirmedByPartnerUserId,
-    bu.confirmed_by_admin_user_id as ConfirmedByAdminUserId,
-    bu.monetary_value as MonetaryValue,
-    bu.discount_value as DiscountValue,
-    bu.snapshot_title as SnapshotTitle,
-    bu.snapshot_partner_name as SnapshotPartnerName,
-    bu.snapshot_rule_summary as SnapshotRuleSummary,
-    bu.created_at as CreatedAt,
-    bu.updated_at as UpdatedAt
-from dbo.benefit_usages bu
-where bu.id = @benefit_usage_id;
-";
+                            select top 1
+                                bu.id as Id,
+                                bu.benefit_id as BenefitId,
+                                bu.benefit_request_id as BenefitRequestId,
+                                bu.partner_id as PartnerId,
+                                bu.used_by_user_id as UsedByUserId,
+                                bu.used_by_partner_customer_id as UsedByPartnerCustomerId,
+                                bu.used_by_type as UsedByType,
+                                bu.pet_id as PetId,
+                                bu.usage_status as UsageStatus,
+                                bu.used_at as UsedAt,
+                                bu.confirmed_by_partner_user_id as ConfirmedByPartnerUserId,
+                                bu.confirmed_by_admin_user_id as ConfirmedByAdminUserId,
+                                bu.monetary_value as MonetaryValue,
+                                bu.discount_value as DiscountValue,
+                                bu.snapshot_title as SnapshotTitle,
+                                bu.snapshot_partner_name as SnapshotPartnerName,
+                                bu.snapshot_rule_summary as SnapshotRuleSummary,
+                                bu.created_at as CreatedAt,
+                                bu.updated_at as UpdatedAt
+                            from dbo.benefit_usages bu
+                            where bu.id = @benefit_usage_id;
+                            ";
 
         return _connection.QueryFirstOrDefaultAsync<BenefitUsageDetailDto>(
             new CommandDefinition(sql, new { benefit_usage_id = usageId }, commandType: CommandType.Text, cancellationToken: cancellationToken));
@@ -133,43 +132,43 @@ where bu.id = @benefit_usage_id;
     public async Task<PagedResultDto<BenefitUsageListItemDto>> SearchAsync(BenefitUsageFilterDto filter, CancellationToken cancellationToken = default)
     {
         const string itemsSql = @"
-select
-    bu.id as Id,
-    bu.benefit_id as BenefitId,
-    bu.benefit_request_id as BenefitRequestId,
-    bu.partner_id as PartnerId,
-    bu.usage_status as UsageStatus,
-    bu.used_by_type as UsedByType,
-    bu.used_at as UsedAt,
-    bu.monetary_value as MonetaryValue,
-    bu.discount_value as DiscountValue,
-    bu.snapshot_title as SnapshotTitle,
-    bu.snapshot_partner_name as SnapshotPartnerName
-from dbo.benefit_usages bu
-where (@search is null or bu.snapshot_title like '%' + @search + '%' or bu.snapshot_partner_name like '%' + @search + '%')
-  and (@benefit_id is null or bu.benefit_id = @benefit_id)
-  and (@benefit_request_id is null or bu.benefit_request_id = @benefit_request_id)
-  and (@partner_id is null or bu.partner_id = @partner_id)
-  and (@usage_status is null or bu.usage_status = @usage_status)
-  and (@used_by_type is null or bu.used_by_type = @used_by_type)
-  and (@used_from is null or bu.used_at >= @used_from)
-  and (@used_to is null or bu.used_at < dateadd(day, 1, @used_to))
-order by bu.used_at desc
-offset @offset rows fetch next @page_size rows only;
-";
+                                select
+                                    bu.id as Id,
+                                    bu.benefit_id as BenefitId,
+                                    bu.benefit_request_id as BenefitRequestId,
+                                    bu.partner_id as PartnerId,
+                                    bu.usage_status as UsageStatus,
+                                    bu.used_by_type as UsedByType,
+                                    bu.used_at as UsedAt,
+                                    bu.monetary_value as MonetaryValue,
+                                    bu.discount_value as DiscountValue,
+                                    bu.snapshot_title as SnapshotTitle,
+                                    bu.snapshot_partner_name as SnapshotPartnerName
+                                from dbo.benefit_usages bu
+                                where (@search is null or bu.snapshot_title like '%' + @search + '%' or bu.snapshot_partner_name like '%' + @search + '%')
+                                  and (@benefit_id is null or bu.benefit_id = @benefit_id)
+                                  and (@benefit_request_id is null or bu.benefit_request_id = @benefit_request_id)
+                                  and (@partner_id is null or bu.partner_id = @partner_id)
+                                  and (@usage_status is null or bu.usage_status = @usage_status)
+                                  and (@used_by_type is null or bu.used_by_type = @used_by_type)
+                                  and (@used_from is null or bu.used_at >= @used_from)
+                                  and (@used_to is null or bu.used_at < dateadd(day, 1, @used_to))
+                                order by bu.used_at desc
+                                offset @offset rows fetch next @page_size rows only;
+                                ";
 
         const string totalSql = @"
-select count(1)
-from dbo.benefit_usages bu
-where (@search is null or bu.snapshot_title like '%' + @search + '%' or bu.snapshot_partner_name like '%' + @search + '%')
-  and (@benefit_id is null or bu.benefit_id = @benefit_id)
-  and (@benefit_request_id is null or bu.benefit_request_id = @benefit_request_id)
-  and (@partner_id is null or bu.partner_id = @partner_id)
-  and (@usage_status is null or bu.usage_status = @usage_status)
-  and (@used_by_type is null or bu.used_by_type = @used_by_type)
-  and (@used_from is null or bu.used_at >= @used_from)
-  and (@used_to is null or bu.used_at < dateadd(day, 1, @used_to));
-";
+                                select count(1)
+                                from dbo.benefit_usages bu
+                                where (@search is null or bu.snapshot_title like '%' + @search + '%' or bu.snapshot_partner_name like '%' + @search + '%')
+                                  and (@benefit_id is null or bu.benefit_id = @benefit_id)
+                                  and (@benefit_request_id is null or bu.benefit_request_id = @benefit_request_id)
+                                  and (@partner_id is null or bu.partner_id = @partner_id)
+                                  and (@usage_status is null or bu.usage_status = @usage_status)
+                                  and (@used_by_type is null or bu.used_by_type = @used_by_type)
+                                  and (@used_from is null or bu.used_at >= @used_from)
+                                  and (@used_to is null or bu.used_at < dateadd(day, 1, @used_to));
+                                ";
 
         var parameters = new
         {
@@ -203,18 +202,18 @@ where (@search is null or bu.snapshot_title like '%' + @search + '%' or bu.snaps
     public async Task<BenefitEligibilityValidationResultDto?> ValidateAsync(ValidateBenefitUsageRequest request, CancellationToken cancellationToken = default)
     {
         const string benefitSql = @"
-select
-    b.id,
-    b.status,
-    b.recurrence_value,
-    b.recurrence_period,
-    b.recurrence_type,
-    b.starts_at,
-    b.ends_at
-from dbo.benefits b
-where b.id = @benefit_id
-  and (@partner_id is null or b.partner_id = @partner_id);
-";
+                                    select
+                                        b.id,
+                                        b.status,
+                                        b.recurrence_value,
+                                        b.recurrence_period,
+                                        b.recurrence_type,
+                                        b.starts_at,
+                                        b.ends_at
+                                    from dbo.benefits b
+                                    where b.id = @benefit_id
+                                      and (@partner_id is null or b.partner_id = @partner_id);
+                                    ";
 
         var benefit = await _connection.QueryFirstOrDefaultAsync<dynamic>(
             new CommandDefinition(
@@ -269,16 +268,16 @@ where b.id = @benefit_id
         }
 
         const string lockSql = @"
-select top 1
-    allowed_uses as AllowedUses,
-    used_count as UsedCount,
-    next_available_at as NextAvailableAt
-from dbo.benefit_usage_locks
-where benefit_id = @benefit_id
-  and actor_type = @actor_type
-  and ((@user_id is not null and user_id = @user_id) or (@partner_customer_id is not null and partner_customer_id = @partner_customer_id))
-order by updated_at desc, created_at desc;
-";
+                                select top 1
+                                    allowed_uses as AllowedUses,
+                                    used_count as UsedCount,
+                                    next_available_at as NextAvailableAt
+                                from dbo.benefit_usage_locks
+                                where benefit_id = @benefit_id
+                                  and actor_type = @actor_type
+                                  and ((@user_id is not null and user_id = @user_id) or (@partner_customer_id is not null and partner_customer_id = @partner_customer_id))
+                                order by updated_at desc, created_at desc;
+                                ";
 
         var usageLock = await _connection.QueryFirstOrDefaultAsync<BenefitEligibilityValidationResultDto>(
             new CommandDefinition(
