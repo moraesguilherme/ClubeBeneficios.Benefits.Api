@@ -19,14 +19,17 @@ public class BenefitLookupService : IBenefitLookupService
         _currentUser = currentUser;
     }
 
-    public Task<BenefitLookupOptionsDto> GetAdminOptionsAsync(Guid? partnerId = null, CancellationToken cancellationToken = default)
+    public Task<BenefitLookupOptionsDto> GetAdminOptionsAsync(
+        Guid? partnerId = null,
+        CancellationToken cancellationToken = default)
         => _repository.GetOptionsAsync(partnerId, cancellationToken);
 
-    public Task<BenefitLookupOptionsDto> GetPartnerOptionsAsync(CancellationToken cancellationToken = default)
+    public Task<BenefitLookupOptionsDto> GetPartnerOptionsAsync(
+        CancellationToken cancellationToken = default)
     {
         if (!_currentUser.IsAuthenticated || !_currentUser.PartnerId.HasValue)
         {
-            throw new ForbiddenException("NÃ£o foi possÃ­vel identificar o parceiro autenticado.");
+            throw new ForbiddenException("Não foi possível identificar o parceiro autenticado.");
         }
 
         return _repository.GetOptionsAsync(_currentUser.PartnerId, cancellationToken);

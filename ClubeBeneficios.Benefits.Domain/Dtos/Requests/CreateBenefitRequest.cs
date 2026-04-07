@@ -53,4 +53,5 @@ public class CreateBenefitRequest
     public bool RequiresManualRelease { get; set; }
     public bool HighlightInShowcase { get; set; }
     public string? StackingRule { get; set; }
+    public Guid? CreatedByUserId { get; set; }
 }

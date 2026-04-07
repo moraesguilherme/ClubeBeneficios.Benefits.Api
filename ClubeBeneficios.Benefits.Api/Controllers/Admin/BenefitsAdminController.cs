@@ -1,6 +1,4 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Security.Claims;
 using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Services;
@@ -66,16 +64,34 @@ public class BenefitsAdminController : ControllerBase
         [FromBody] CreateBenefitRequest request,
         CancellationToken cancellationToken)
     {
+        var userIdValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst("sub")?.Value;
+
+        if (Guid.TryParse(userIdValue, out var parsedUserId))
+        {
+            request.CreatedByUserId = parsedUserId;
+        }
+
         var id = await _benefitService.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id }, new { id });
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(
-        Guid id,
-        [FromBody] UpdateBenefitRequest request,
-        CancellationToken cancellationToken)
+            Guid id,
+            [FromBody] UpdateBenefitRequest request,
+            CancellationToken cancellationToken)
     {
+        var userIdValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst("sub")?.Value;
+
+        if (Guid.TryParse(userIdValue, out var parsedUserId))
+        {
+            request.UpdatedByUserId = parsedUserId;
+        }
+
         var success = await _benefitService.UpdateAsync(id, request, cancellationToken);
         return success ? NoContent() : NotFound();
     }
@@ -86,6 +102,15 @@ public class BenefitsAdminController : ControllerBase
         [FromBody] ChangeBenefitStatusRequest request,
         CancellationToken cancellationToken)
     {
+        var userIdValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst("sub")?.Value;
+
+        if (Guid.TryParse(userIdValue, out var parsedUserId))
+        {
+            request.ChangedByUserId = parsedUserId;
+        }
+
         var success = await _benefitService.ChangeStatusAsync(id, request, cancellationToken);
         return success ? NoContent() : NotFound();
     }
@@ -96,6 +121,15 @@ public class BenefitsAdminController : ControllerBase
         [FromBody] AddBenefitReviewRequest request,
         CancellationToken cancellationToken)
     {
+        var userIdValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst("sub")?.Value;
+
+        if (Guid.TryParse(userIdValue, out var parsedUserId))
+        {
+            request.ReviewedByUserId = parsedUserId;
+        }
+
         var success = await _benefitService.AddReviewAsync(id, request, cancellationToken);
         return success ? NoContent() : NotFound();
     }

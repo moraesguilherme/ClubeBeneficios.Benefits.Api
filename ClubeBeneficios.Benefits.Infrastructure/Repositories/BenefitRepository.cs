@@ -169,7 +169,11 @@ public class BenefitRepository : IBenefitRepository
                                 ELSE b.direction
                             END AS DirectionLabel,
                             bt.status AS Status,
-                            COALESCE(b.latest_review_status, bt.status) AS ApprovalStage,
+                            CASE
+                                WHEN bt.status = 'pending_review' THEN 'pending_review'
+                                WHEN bt.status = 'under_review' THEN 'under_review'
+                                ELSE bt.status
+                            END AS ApprovalStage,
                             b.target_actor_type AS TargetActorType,
                             CASE
                                 WHEN b.target_actor_type = 'client' THEN 'Cliente Matilha'
@@ -376,8 +380,28 @@ public class BenefitRepository : IBenefitRepository
         return id;
     }
 
+    private async Task<string?> GetCurrentStatusAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+        SELECT TOP (1) status
+        FROM dbo.benefits
+        WHERE id = @Id;";
+
+        using var connection = await OpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+            sql,
+            new { Id = id },
+            cancellationToken: cancellationToken));
+    }
+
     public async Task<bool> UpdateAsync(Guid id, UpdateBenefitRequest request, CancellationToken cancellationToken = default)
     {
+        var currentStatus = await GetCurrentStatusAsync(id, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(currentStatus))
+            return false;
+
         using var connection = await OpenConnectionAsync(cancellationToken);
 
         var parameters = BuildUpdateParameters(id, request);
@@ -387,6 +411,30 @@ public class BenefitRepository : IBenefitRepository
             parameters,
             commandType: CommandType.StoredProcedure,
             cancellationToken: cancellationToken));
+
+        var normalizedRequestedStatus = string.IsNullOrWhiteSpace(request.Status)
+            ? null
+            : BenefitContractMapper.NormalizeStatus(request.Status);
+
+        var normalizedCurrentStatus = string.IsNullOrWhiteSpace(currentStatus)
+            ? null
+            : BenefitContractMapper.NormalizeStatus(currentStatus);
+
+        if (!string.IsNullOrWhiteSpace(normalizedRequestedStatus) &&
+            !string.Equals(normalizedRequestedStatus, normalizedCurrentStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            var statusParameters = new DynamicParameters();
+            statusParameters.Add("BenefitId", id);
+            statusParameters.Add("NewStatus", normalizedRequestedStatus);
+            statusParameters.Add("Reason", "Status alterado durante edição do benefício.");
+            statusParameters.Add("ChangedByUserId", request.UpdatedByUserId);
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                "dbo.usp_benefits_change_status",
+                statusParameters,
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken));
+        }
 
         return true;
     }
@@ -399,7 +447,7 @@ public class BenefitRepository : IBenefitRepository
         parameters.Add("BenefitId", id);
         parameters.Add("NewStatus", BenefitContractMapper.NormalizeStatus(GetStringValue(request, "Status") ?? GetStringValue(request, "NewStatus")));
         parameters.Add("Reason", GetStringValue(request, "Reason"));
-        parameters.Add("ChangedByUserId", GetGuidValue(request, "ChangedByUserId"));
+        parameters.Add("ChangedByUserId", request.ChangedByUserId);
 
         await connection.ExecuteAsync(new CommandDefinition(
             "dbo.usp_benefits_change_status",
@@ -410,16 +458,19 @@ public class BenefitRepository : IBenefitRepository
         return true;
     }
 
-    public async Task<bool> AddReviewAsync(Guid id, AddBenefitReviewRequest request, CancellationToken cancellationToken = default)
+    public async Task<bool> AddReviewAsync(
+    Guid id,
+    AddBenefitReviewRequest request,
+    CancellationToken cancellationToken = default)
     {
         using var connection = await OpenConnectionAsync(cancellationToken);
 
         var parameters = new DynamicParameters();
         parameters.Add("BenefitId", id);
-        parameters.Add("ReviewStatus", NormalizeReviewStatus(GetFirstStringValue(request, "ReviewStatus", "Decision")));
-        parameters.Add("ReviewPoint", GetFirstStringValue(request, "ReviewPoint", "ReviewType"));
-        parameters.Add("ReviewRecommendation", GetFirstStringValue(request, "ReviewRecommendation", "Notes", "RequestedChanges", "InternalNotes"));
-        parameters.Add("ReviewedByUserId", GetFirstGuidValue(request, "ReviewedByUserId", "ReviewerUserId"));
+        parameters.Add("ReviewStatus", NormalizeReviewStatus(request.ReviewStatus));
+        parameters.Add("ReviewPoint", request.ReviewPoint);
+        parameters.Add("ReviewRecommendation", request.ReviewRecommendation);
+        parameters.Add("ReviewedByUserId", request.ReviewedByUserId);
 
         await connection.ExecuteAsync(new CommandDefinition(
             "dbo.usp_benefits_add_review",
@@ -461,7 +512,7 @@ public class BenefitRepository : IBenefitRepository
         parameters.Add("RequiresAccessCode", request.RequiresAccessCode);
         parameters.Add("AllowAnyActivePartnerCode", request.AllowAnyActivePartnerCode);
         parameters.Add("SpecificAccessCodeId", request.SpecificAccessCodeId);
-        parameters.Add("CodeValidationMode", request.CodeValidationMode);
+        parameters.Add("CodeValidationMode", string.IsNullOrWhiteSpace(request.CodeValidationMode) ? "partner_code" : request.CodeValidationMode);
         parameters.Add("RecurrenceType", BenefitContractMapper.NormalizeRecurrenceType(request.RecurrenceType));
         parameters.Add("RecurrenceValue", request.RecurrenceValue);
         parameters.Add("RecurrencePeriod", request.RecurrencePeriod);
@@ -472,7 +523,7 @@ public class BenefitRepository : IBenefitRepository
         parameters.Add("RequiresManualRelease", request.RequiresManualRelease);
         parameters.Add("HighlightInShowcase", request.HighlightInShowcase);
         parameters.Add("StackingRule", request.StackingRule);
-        parameters.Add("CreatedByUserId", GetGuidValue(request, "CreatedByUserId"));
+        parameters.Add("CreatedByUserId", request.CreatedByUserId);
         parameters.Add("InitialStatus", BenefitContractMapper.NormalizeStatus(request.Status));
 
         return parameters;
@@ -483,12 +534,15 @@ public class BenefitRepository : IBenefitRepository
         var parameters = new DynamicParameters();
 
         parameters.Add("BenefitId", id);
+        parameters.Add("PartnerId", request.PartnerId);
         parameters.Add("Title", request.Title);
         parameters.Add("BenefitType", request.BenefitType);
+        parameters.Add("Direction", BenefitContractMapper.NormalizeDirection(request.Direction));
         parameters.Add("TargetActorType", BenefitContractMapper.NormalizeTargetActorType(request.TargetActorType));
         parameters.Add("ShortDescription", request.ShortDescription);
         parameters.Add("FullDescription", request.FullDescription);
         parameters.Add("InternalNotes", request.InternalNotes);
+        parameters.Add("Status", string.IsNullOrWhiteSpace(request.Status) ? null : BenefitContractMapper.NormalizeStatus(request.Status));
         parameters.Add("EligibilityType", BenefitContractMapper.NormalizeEligibilityType(request.EligibilityType));
         parameters.Add("AllowFirstUseOnly", request.FirstUseOnly);
         parameters.Add("RequiresActiveAccessCode", request.RequiresAccessCode);
@@ -508,7 +562,7 @@ public class BenefitRepository : IBenefitRepository
         parameters.Add("RequiresAccessCode", request.RequiresAccessCode);
         parameters.Add("AllowAnyActivePartnerCode", request.AllowAnyActivePartnerCode);
         parameters.Add("SpecificAccessCodeId", request.SpecificAccessCodeId);
-        parameters.Add("CodeValidationMode", request.CodeValidationMode);
+        parameters.Add("CodeValidationMode", string.IsNullOrWhiteSpace(request.CodeValidationMode) ? "partner_code" : request.CodeValidationMode);
         parameters.Add("RecurrenceType", BenefitContractMapper.NormalizeRecurrenceType(request.RecurrenceType));
         parameters.Add("RecurrenceValue", request.RecurrenceValue);
         parameters.Add("RecurrencePeriod", request.RecurrencePeriod);
@@ -519,7 +573,7 @@ public class BenefitRepository : IBenefitRepository
         parameters.Add("RequiresManualRelease", request.RequiresManualRelease);
         parameters.Add("HighlightInShowcase", request.HighlightInShowcase);
         parameters.Add("StackingRule", request.StackingRule);
-        parameters.Add("UpdatedByUserId", GetGuidValue(request, "UpdatedByUserId"));
+        parameters.Add("UpdatedByUserId", request.UpdatedByUserId);
 
         return parameters;
     }
@@ -538,6 +592,7 @@ public class BenefitRepository : IBenefitRepository
     {
         AddLikeFilter(filter, where, parameters, "Search", "b.title");
         AddStringFilter(filter, where, parameters, "Status", "b.status", normalizeStatus: true);
+        AddStringFilter(filter, where, parameters, "Origin", "b.direction");
         AddGuidFilter(filter, where, parameters, "PartnerId", "b.partner_id");
     }
 
@@ -594,7 +649,7 @@ public class BenefitRepository : IBenefitRepository
             "changes_requested" => "changes_requested",
             "adjustments_requested" => "changes_requested",
             "ajustes_solicitados" => "changes_requested",
-            _ => "changes_requested"
+            _ => throw new InvalidOperationException($"ReviewStatus inválido: '{value}'.")
         };
     }
 

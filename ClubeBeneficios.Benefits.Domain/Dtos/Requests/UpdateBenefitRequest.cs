@@ -7,6 +7,7 @@ public class UpdateBenefitRequest
 {
     public string? Title { get; set; }
     public string? BenefitType { get; set; }
+    public Guid? PartnerId { get; set; }
     public string? Direction { get; set; }
     public string? TargetActorType { get; set; }
 
@@ -52,4 +53,5 @@ public class UpdateBenefitRequest
     public bool RequiresManualRelease { get; set; }
     public bool HighlightInShowcase { get; set; }
     public string? StackingRule { get; set; }
+    public Guid? UpdatedByUserId { get; set; }
 }

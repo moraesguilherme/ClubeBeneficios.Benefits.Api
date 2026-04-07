@@ -9,6 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Repositories\BenefitRepository.cs.bak" />
+    <None Remove="Repositories\BenefitRepository.cs.bak_20260402_161306" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ClubeBeneficios.Benefits.Domain\ClubeBeneficios.Benefits.Domain.csproj" />
   </ItemGroup>
 
