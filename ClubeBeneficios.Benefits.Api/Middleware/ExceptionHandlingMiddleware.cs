@@ -1,18 +1,25 @@
 using System.Net;
 using System.Text.Json;
 using FluentValidation;
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Exceptions;
+using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ClubeBeneficios.Benefits.Api.Middleware;
 
 public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+    private readonly IWebHostEnvironment _environment;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next)
+    public ExceptionHandlingMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionHandlingMiddleware> logger,
+        IWebHostEnvironment environment)
     {
         _next = next;
+        _logger = logger;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -21,77 +28,174 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
-        catch (ValidationException ex)
+        catch (ValidationException exception)
         {
-            await WriteValidationErrorAsync(context, ex);
+            await WriteValidationProblemAsync(context, exception);
         }
-        catch (NotFoundException ex)
+        catch (SqlException exception)
         {
-            await WriteErrorAsync(context, (int)HttpStatusCode.NotFound, ex.Code, ex.Message);
+            await WriteSqlProblemAsync(context, exception);
         }
-        catch (ForbiddenException ex)
+        catch (UnauthorizedAccessException exception)
         {
-            await WriteErrorAsync(context, (int)HttpStatusCode.Forbidden, ex.Code, ex.Message);
+            await WriteProblemAsync(
+                context,
+                HttpStatusCode.Forbidden,
+                "Acesso negado.",
+                exception.Message,
+                exception);
         }
-        catch (BusinessRuleException ex)
+        catch (KeyNotFoundException exception)
         {
-            await WriteErrorAsync(context, StatusCodes.Status422UnprocessableEntity, ex.Code, ex.Message);
+            await WriteProblemAsync(
+                context,
+                HttpStatusCode.NotFound,
+                "Recurso não encontrado.",
+                exception.Message,
+                exception);
         }
-        catch (DomainException ex)
+        catch (ArgumentException exception)
         {
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, ex.Code, ex.Message);
+            await WriteProblemAsync(
+                context,
+                HttpStatusCode.BadRequest,
+                "Requisição inválida.",
+                exception.Message,
+                exception);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException exception)
         {
-            await WriteErrorAsync(context, StatusCodes.Status500InternalServerError, "unexpected_error", ex.Message);
+            await WriteProblemAsync(
+                context,
+                HttpStatusCode.BadRequest,
+                "Operação não permitida.",
+                exception.Message,
+                exception);
+        }
+        catch (Exception exception)
+        {
+            await WriteProblemAsync(
+                context,
+                HttpStatusCode.InternalServerError,
+                "Erro interno.",
+                "Ocorreu um erro inesperado ao processar a requisição.",
+                exception);
         }
     }
 
-    private static async Task WriteValidationErrorAsync(HttpContext context, ValidationException ex)
+    private async Task WriteValidationProblemAsync(
+        HttpContext context,
+        ValidationException exception)
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        context.Response.ContentType = "application/json";
-
-        var errors = ex.Errors
+        var errors = exception.Errors
             .GroupBy(x => x.PropertyName)
             .ToDictionary(
-                g => g.Key,
-                g => g.Select(x => x.ErrorMessage).Distinct().ToArray());
+                x => x.Key,
+                x => x.Select(error => error.ErrorMessage).ToArray());
 
-        var response = new ApiErrorResponseDto
+        var problem = new ValidationProblemDetails(errors)
         {
-            Code = "validation_error",
-            Message = "Ocorreram erros de validaÃ§Ã£o na requisiÃ§Ã£o.",
             Status = StatusCodes.Status400BadRequest,
-            TraceId = context.TraceIdentifier,
-            Errors = errors
+            Title = "Erro de validação.",
+            Detail = "Um ou mais campos enviados são inválidos.",
+            Instance = context.Request.Path
         };
 
-        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
-
-        await context.Response.WriteAsync(json);
+        await WriteResponseAsync(context, StatusCodes.Status400BadRequest, problem);
     }
 
-    private static async Task WriteErrorAsync(HttpContext context, int statusCode, string code, string message)
+    private async Task WriteSqlProblemAsync(
+    HttpContext context,
+    SqlException exception)
     {
-        context.Response.StatusCode = statusCode;
-        context.Response.ContentType = "application/json";
-
-        var response = new ApiErrorResponseDto
+        var statusCode = exception.Number switch
         {
-            Code = code,
-            Message = message,
-            Status = statusCode,
-            TraceId = context.TraceIdentifier
+            2601 => StatusCodes.Status409Conflict,
+            2627 => StatusCodes.Status409Conflict,
+            547 => StatusCodes.Status400BadRequest,
+            50000 => StatusCodes.Status400BadRequest,
+            _ => StatusCodes.Status500InternalServerError
         };
 
-        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+        var title = exception.Number switch
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+            2601 => "Registro duplicado.",
+            2627 => "Registro duplicado.",
+            547 => "Regra de banco violada.",
+            50000 => "Regra de negócio.",
+            _ => "Erro de banco de dados."
+        };
+
+        var detail = exception.Number switch
+        {
+            2601 => "Já existe um registro com os dados informados.",
+            2627 => "Já existe um registro com os dados informados.",
+            547 => "A operação não pôde ser concluída por violar uma regra de relacionamento ou validação do banco.",
+            50000 => exception.Message,
+            _ => "Ocorreu um erro ao acessar o banco de dados."
+        };
+
+        await WriteProblemAsync(
+            context,
+            (HttpStatusCode)statusCode,
+            title,
+            detail,
+            exception);
+    }
+
+    private async Task WriteProblemAsync(
+        HttpContext context,
+        HttpStatusCode statusCode,
+        string title,
+        string detail,
+        Exception exception)
+    {
+        if ((int)statusCode >= 500)
+        {
+            _logger.LogError(exception, "{Title}: {Message}", title, exception.Message);
+        }
+        else
+        {
+            _logger.LogWarning(exception, "{Title}: {Message}", title, exception.Message);
+        }
+
+        var problem = new ProblemDetails
+        {
+            Status = (int)statusCode,
+            Title = title,
+            Detail = _environment.IsDevelopment()
+                ? exception.Message
+                : detail,
+            Instance = context.Request.Path
+        };
+
+        if (_environment.IsDevelopment())
+        {
+            problem.Extensions["exceptionType"] = exception.GetType().Name;
+            problem.Extensions["traceId"] = context.TraceIdentifier;
+        }
+
+        await WriteResponseAsync(context, (int)statusCode, problem);
+    }
+
+    private static async Task WriteResponseAsync(
+        HttpContext context,
+        int statusCode,
+        ProblemDetails problem)
+    {
+        if (context.Response.HasStarted)
+            return;
+
+        context.Response.Clear();
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/problem+json";
+
+        var json = JsonSerializer.Serialize(
+            problem,
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
 
         await context.Response.WriteAsync(json);
     }

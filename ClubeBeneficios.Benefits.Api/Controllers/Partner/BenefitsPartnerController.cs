@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ClubeBeneficios.Benefits.Api.Mappers;
+using ClubeBeneficios.Benefits.Domain.Dtos;
 using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
+using ClubeBeneficios.Benefits.Domain.Dtos.Partner;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Security;
 using ClubeBeneficios.Benefits.Domain.Services;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Partner;
@@ -13,37 +17,100 @@ namespace ClubeBeneficios.Benefits.Api.Controllers.Partner;
 public class BenefitsPartnerController : ControllerBase
 {
     private readonly IBenefitService _benefitService;
-    // TODO: Implementar isolamento de parceiro.
-    // Quando a visão partner for ativada de fato, este controller não deve usar
-    // apenas os métodos genéricos do módulo administrativo.
-    // Será necessário aplicar escopo do parceiro autenticado (partnerId vindo do token/claims)
-    // para garantir que o parceiro visualize e altere apenas os próprios benefícios.
-    public BenefitsPartnerController(IBenefitService benefitService)
+    private readonly ICurrentUser _currentUser;
+
+    public BenefitsPartnerController(
+        IBenefitService benefitService,
+        ICurrentUser currentUser)
     {
         _benefitService = benefitService;
+        _currentUser = currentUser;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetPaged(
+    public async Task<ActionResult<PagedResultDto<PartnerBenefitListItemDto>>> GetPaged(
         [FromQuery] BenefitFilterDto filter,
         CancellationToken cancellationToken)
-        => Ok(await _benefitService.GetPagedAsync(filter, cancellationToken));
+    {
+        var partnerId = GetPartnerId();
+
+        if (partnerId is null)
+            return Unauthorized();
+
+        filter.PartnerId = partnerId;
+
+        var result = await _benefitService.GetPagedAsync(filter, cancellationToken);
+
+        return Ok(result.ToPartnerPagedResult());
+    }
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken cancellationToken)
-        => Ok(await _benefitService.GetDashboardSummaryAsync(cancellationToken));
+    {
+        var partnerId = GetPartnerId();
+
+        if (partnerId is null)
+            return Unauthorized();
+
+        var filter = new BenefitFilterDto
+        {
+            PartnerId = partnerId,
+            Page = 1,
+            PageSize = 500
+        };
+
+        var result = await _benefitService.GetPagedAsync(filter, cancellationToken);
+        var items = result.Items.ToList();
+
+        var activeBenefits = items.Count(x => x.Status == "active");
+        var pendingBenefits = items.Count(x => x.Status is "pending_review" or "under_review");
+        var inactiveBenefits = items.Count(x => x.Status == "inactive");
+
+        var totalRequests = items.Sum(x => x.RequestsCount);
+        var totalUsages = items.Sum(x => x.UsagesCount);
+
+        var averageConversionRate = items.Count == 0
+            ? 0
+            : (int)Math.Round(items.Average(x => x.ConversionRate), 0);
+
+        return Ok(new
+        {
+            totalBenefits = result.TotalCount,
+            activeBenefits,
+            pendingBenefits,
+            inactiveBenefits,
+            totalRequests,
+            totalUsages,
+            averageConversionRate
+        });
+    }
 
     [HttpGet("filter-options")]
     public async Task<IActionResult> GetFilterOptions(CancellationToken cancellationToken)
-        => Ok(await _benefitService.GetFilterOptionsAsync(cancellationToken));
+    {
+        var result = await _benefitService.GetFilterOptionsAsync(cancellationToken);
+        return Ok(result);
+    }
 
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(
+    public async Task<ActionResult<PartnerBenefitDetailsDto>> GetById(
         [FromRoute] Guid id,
         CancellationToken cancellationToken)
     {
+        var partnerId = GetPartnerId();
+
+        if (partnerId is null)
+            return Unauthorized();
+
         var item = await _benefitService.GetByIdAsync(id, cancellationToken);
-        return item is null ? NotFound() : Ok(item);
+
+        if (item is null)
+            return NotFound();
+
+        if (item.PartnerId != partnerId)
+            return NotFound();
+
+        return Ok(item.ToPartnerDto());
     }
 
     [HttpPost]
@@ -51,8 +118,19 @@ public class BenefitsPartnerController : ControllerBase
         [FromBody] CreateBenefitRequest request,
         CancellationToken cancellationToken)
     {
+        var partnerId = GetPartnerId();
+
+        if (partnerId is null)
+            return Unauthorized();
+
+        request.PartnerId = partnerId;
+
         var id = await _benefitService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id }, new { id });
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id },
+            new { id });
     }
 
     [HttpPut("{id:guid}")]
@@ -61,8 +139,24 @@ public class BenefitsPartnerController : ControllerBase
         [FromBody] UpdateBenefitRequest request,
         CancellationToken cancellationToken)
     {
-        await _benefitService.UpdateAsync(id, request, cancellationToken);
-        return NoContent();
+        var partnerId = GetPartnerId();
+
+        if (partnerId is null)
+            return Unauthorized();
+
+        var current = await _benefitService.GetByIdAsync(id, cancellationToken);
+
+        if (current is null)
+            return NotFound();
+
+        if (current.PartnerId != partnerId)
+            return NotFound();
+
+        request.PartnerId = partnerId;
+
+        var success = await _benefitService.UpdateAsync(id, request, cancellationToken);
+
+        return success ? NoContent() : NotFound();
     }
 
     [HttpPut("{id:guid}/status")]
@@ -71,7 +165,26 @@ public class BenefitsPartnerController : ControllerBase
         [FromBody] ChangeBenefitStatusRequest request,
         CancellationToken cancellationToken)
     {
-        await _benefitService.ChangeStatusAsync(id, request, cancellationToken);
-        return NoContent();
+        var partnerId = GetPartnerId();
+
+        if (partnerId is null)
+            return Unauthorized();
+
+        var current = await _benefitService.GetByIdAsync(id, cancellationToken);
+
+        if (current is null)
+            return NotFound();
+
+        if (current.PartnerId != partnerId)
+            return NotFound();
+
+        var success = await _benefitService.ChangeStatusAsync(id, request, cancellationToken);
+
+        return success ? NoContent() : NotFound();
+    }
+
+    private Guid? GetPartnerId()
+    {
+        return _currentUser.PartnerId;
     }
 }

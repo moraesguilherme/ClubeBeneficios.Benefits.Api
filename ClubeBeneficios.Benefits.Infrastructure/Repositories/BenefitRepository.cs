@@ -644,11 +644,20 @@ public class BenefitRepository : IBenefitRepository
         {
             "approved" => "approved",
             "aprovado" => "approved",
+
             "rejected" => "rejected",
             "reprovado" => "rejected",
-            "changes_requested" => "changes_requested",
-            "adjustments_requested" => "changes_requested",
-            "ajustes_solicitados" => "changes_requested",
+
+            "under_review" => "under_review",
+            "changes_requested" => "under_review",
+            "adjustments_requested" => "under_review",
+            "ajustes_solicitados" => "under_review",
+            "ajuste_solicitado" => "under_review",
+            "solicitar_ajuste" => "under_review",
+
+            "pending_review" => "pending_review",
+            "pendente" => "pending_review",
+
             _ => throw new InvalidOperationException($"ReviewStatus inválido: '{value}'.")
         };
     }
