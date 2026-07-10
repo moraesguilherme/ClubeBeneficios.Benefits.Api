@@ -324,7 +324,7 @@ public class BenefitUsageRepository : IBenefitUsageRepository
         };
     }
 
-    public async Task<BenefitEligibilityValidationResultDto?> ValidateAsync(
+    public async Task<BenefitOfferEligibilityValidationResultDto?> ValidateAsync(
         ValidateBenefitUsageRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -355,7 +355,7 @@ public class BenefitUsageRepository : IBenefitUsageRepository
 
         if (benefit is null)
         {
-            return new BenefitEligibilityValidationResultDto
+            return new BenefitOfferEligibilityValidationResultDto
             {
                 IsAllowed = false,
                 BlockReason = "Benefício não encontrado.",
@@ -365,7 +365,7 @@ public class BenefitUsageRepository : IBenefitUsageRepository
 
         if (benefit.Status != "active" && benefit.Status != "approved")
         {
-            return new BenefitEligibilityValidationResultDto
+            return new BenefitOfferEligibilityValidationResultDto
             {
                 IsAllowed = false,
                 BlockReason = "Benefício não está disponível para uso.",
@@ -377,7 +377,7 @@ public class BenefitUsageRepository : IBenefitUsageRepository
 
         if (benefit.StartsAt is not null && referenceDate < benefit.StartsAt.Value)
         {
-            return new BenefitEligibilityValidationResultDto
+            return new BenefitOfferEligibilityValidationResultDto
             {
                 IsAllowed = false,
                 BlockReason = "Benefício ainda não iniciou.",
@@ -387,7 +387,7 @@ public class BenefitUsageRepository : IBenefitUsageRepository
 
         if (benefit.EndsAt is not null && referenceDate > benefit.EndsAt.Value)
         {
-            return new BenefitEligibilityValidationResultDto
+            return new BenefitOfferEligibilityValidationResultDto
             {
                 IsAllowed = false,
                 BlockReason = "Benefício expirado.",
@@ -411,7 +411,7 @@ public class BenefitUsageRepository : IBenefitUsageRepository
             order by updated_at desc, created_at desc;
         ";
 
-        var usageLock = await _connection.QueryFirstOrDefaultAsync<BenefitEligibilityValidationResultDto>(
+        var usageLock = await _connection.QueryFirstOrDefaultAsync<BenefitOfferEligibilityValidationResultDto>(
             new CommandDefinition(
                 lockSql,
                 new
@@ -435,7 +435,7 @@ public class BenefitUsageRepository : IBenefitUsageRepository
             return usageLock;
         }
 
-        return new BenefitEligibilityValidationResultDto
+        return new BenefitOfferEligibilityValidationResultDto
         {
             IsAllowed = true,
             BlockReason = null,

@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitHistoryItemDto
+public class BenefitOfferHistoryItemDto
 {
     public long Id { get; set; }
     public Guid BenefitId { get; set; }

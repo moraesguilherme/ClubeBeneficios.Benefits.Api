@@ -32,7 +32,7 @@ public class BenefitUsageConfirmationsController : ControllerBase
 
     [HttpPost("{token}/confirm")]
     [AllowAnonymous]
-    public async Task<ActionResult<BenefitUsageConfirmationConfirmResultDto>> Confirm(
+    public async Task<ActionResult<ConfirmBenefitUsageConfirmationResultDto>> Confirm(
         string token,
         CancellationToken cancellationToken)
     {

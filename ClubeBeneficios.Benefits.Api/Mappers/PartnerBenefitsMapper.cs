@@ -9,7 +9,7 @@ namespace ClubeBeneficios.Benefits.Api.Mappers;
 public static class PartnerBenefitsMapper
 {
     public static PagedResultDto<PartnerBenefitListItemDto> ToPartnerPagedResult(
-        this PagedResultDto<BenefitListItemDto> source)
+        this PagedResultDto<BenefitOfferListItemDto> source)
     {
         return new PagedResultDto<PartnerBenefitListItemDto>
         {
@@ -20,7 +20,7 @@ public static class PartnerBenefitsMapper
         };
     }
 
-    public static PartnerBenefitListItemDto ToPartnerDto(this BenefitListItemDto source)
+    public static PartnerBenefitListItemDto ToPartnerDto(this BenefitOfferListItemDto source)
     {
         return new PartnerBenefitListItemDto
         {
@@ -61,7 +61,7 @@ public static class PartnerBenefitsMapper
         };
     }
 
-    public static PartnerBenefitDetailsDto ToPartnerDto(this BenefitDetailsDto source)
+    public static PartnerBenefitDetailsDto ToPartnerDto(this BenefitOfferDetailsDto source)
     {
         return new PartnerBenefitDetailsDto
         {
@@ -101,7 +101,7 @@ public static class PartnerBenefitsMapper
     }
 
     public static PagedResultDto<PartnerBenefitRequestListItemDto> ToPartnerPagedResult(
-        this PagedResultDto<BenefitRequestListItemDto> source)
+        this PagedResultDto<BenefitUsageRequestListItemDto> source)
     {
         return new PagedResultDto<PartnerBenefitRequestListItemDto>
         {
@@ -112,7 +112,7 @@ public static class PartnerBenefitsMapper
         };
     }
 
-    public static PartnerBenefitRequestListItemDto ToPartnerDto(this BenefitRequestListItemDto source)
+    public static PartnerBenefitRequestListItemDto ToPartnerDto(this BenefitUsageRequestListItemDto source)
     {
         return new PartnerBenefitRequestListItemDto
         {
@@ -152,7 +152,7 @@ public static class PartnerBenefitsMapper
         };
     }
 
-    public static PartnerBenefitRequestDetailDto ToPartnerDto(this BenefitRequestDetailDto source)
+    public static PartnerBenefitRequestDetailDto ToPartnerDto(this BenefitUsageRequestDetailDto source)
     {
         return new PartnerBenefitRequestDetailDto
         {

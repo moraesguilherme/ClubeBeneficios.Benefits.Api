@@ -25,14 +25,14 @@ public class BenefitRequestsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<PagedResultDto<BenefitRequestListItemDto>>> Search(
-        [FromQuery] BenefitRequestFilterDto filter,
+    public async Task<ActionResult<PagedResultDto<BenefitUsageRequestListItemDto>>> Search(
+        [FromQuery] BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken)
         => Ok(await _service.SearchAdminAsync(filter, cancellationToken));
 
     [HttpGet("approval-queue")]
-    public async Task<ActionResult<PagedResultDto<BenefitRequestListItemDto>>> GetApprovalQueue(
-        [FromQuery] BenefitRequestFilterDto filter,
+    public async Task<ActionResult<PagedResultDto<BenefitUsageRequestListItemDto>>> GetApprovalQueue(
+        [FromQuery] BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken)
         => Ok(await _service.SearchPendingReviewAsync(filter, cancellationToken));
 
@@ -42,7 +42,7 @@ public class BenefitRequestsController : ControllerBase
         => Ok(await _service.GetApprovalSummaryAsync(cancellationToken));
 
     [HttpGet("{requestId:guid}")]
-    public async Task<ActionResult<BenefitRequestDetailDto>> GetById(
+    public async Task<ActionResult<BenefitUsageRequestDetailDto>> GetById(
         Guid requestId,
         CancellationToken cancellationToken)
     {
@@ -52,7 +52,7 @@ public class BenefitRequestsController : ControllerBase
 
     [HttpPost]
     public async Task<ActionResult<Guid>> Create(
-    [FromBody] CreateBenefitRequestDto request,
+    [FromBody] CreateBenefitUsageRequest request,
     CancellationToken cancellationToken)
     {
         var id = await _service.CreateAsync(request, cancellationToken);
@@ -72,7 +72,7 @@ public class BenefitRequestsController : ControllerBase
     [HttpPost("{requestId:guid}/reviews")]
     public async Task<IActionResult> AddReview(
         Guid requestId,
-        [FromBody] AddBenefitRequestReviewRequest request,
+        [FromBody] AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken)
     {
         await _service.AddReviewAsync(requestId, request, cancellationToken);
@@ -82,7 +82,7 @@ public class BenefitRequestsController : ControllerBase
     [HttpPost("{requestId:guid}/approve")]
     public async Task<IActionResult> Approve(
         Guid requestId,
-        [FromBody] AddBenefitRequestReviewRequest request,
+        [FromBody] AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken)
     {
         await _service.ApproveAsync(requestId, request, cancellationToken);
@@ -92,7 +92,7 @@ public class BenefitRequestsController : ControllerBase
     [HttpPost("{requestId:guid}/request-changes")]
     public async Task<IActionResult> RequestChanges(
         Guid requestId,
-        [FromBody] AddBenefitRequestReviewRequest request,
+        [FromBody] AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken)
     {
         await _service.RequestChangesAsync(requestId, request, cancellationToken);
@@ -102,7 +102,7 @@ public class BenefitRequestsController : ControllerBase
     [HttpPost("{requestId:guid}/reject")]
     public async Task<IActionResult> Reject(
         Guid requestId,
-        [FromBody] AddBenefitRequestReviewRequest request,
+        [FromBody] AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken)
     {
         await _service.RejectAsync(requestId, request, cancellationToken);
@@ -112,7 +112,7 @@ public class BenefitRequestsController : ControllerBase
     [HttpPut("{requestId:guid}/status")]
     public async Task<IActionResult> ChangeStatus(
         Guid requestId,
-        [FromBody] ChangeBenefitRequestStatusRequest request,
+        [FromBody] ChangeBenefitUsageRequestStatusRequest request,
         CancellationToken cancellationToken)
     {
         await _service.ChangeStatusAsync(requestId, request, cancellationToken);
@@ -122,7 +122,7 @@ public class BenefitRequestsController : ControllerBase
     [HttpPost("{requestId:guid}/usage-confirmations")]
     public async Task<ActionResult<BenefitUsageConfirmationPairResultDto>> CreateUsageConfirmationPair(
     Guid requestId,
-    [FromBody] CreateBenefitUsageConfirmationPairRequest request,
+    [FromBody] CreateBenefitUsageConfirmationLinksRequest request,
     CancellationToken cancellationToken)
     {
         var result = await _service.CreateUsageConfirmationPairAsync(

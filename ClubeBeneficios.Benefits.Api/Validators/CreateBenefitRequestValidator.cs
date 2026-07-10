@@ -3,7 +3,7 @@ using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
 namespace ClubeBeneficios.Benefits.Api.Validators;
 
-public class CreateBenefitRequestValidator : AbstractValidator<CreateBenefitRequest>
+public class CreateBenefitRequestValidator : AbstractValidator<CreateBenefitOfferRequest>
 {
     public CreateBenefitRequestValidator()
     {

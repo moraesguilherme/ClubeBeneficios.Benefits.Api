@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Services;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Filters;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Partner;
 

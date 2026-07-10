@@ -144,7 +144,7 @@ internal static class BenefitContractMapper
             ? string.Empty
             : string.Join(',', values.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim().ToLowerInvariant()).Distinct());
 
-    public static string? BuildEligibilitySummary(CreateBenefitRequest request)
+    public static string? BuildEligibilitySummary(CreateBenefitOfferRequest request)
     {
         return BuildEligibilitySummary(
             request.EligibilityType,
@@ -159,7 +159,7 @@ internal static class BenefitContractMapper
             request.EligibilitySummary);
     }
 
-    public static string? BuildEligibilitySummary(UpdateBenefitRequest request)
+    public static string? BuildEligibilitySummary(UpdateBenefitOfferRequest request)
     {
         return BuildEligibilitySummary(
             request.EligibilityType,
@@ -213,16 +213,16 @@ internal static class BenefitContractMapper
         return string.Join(" | ", parts);
     }
 
-    public static BenefitLevelScopeDto BuildLevelScope(string? levelType, IEnumerable<string>? allowedLevels)
+    public static BenefitOfferLevelScopeDto BuildLevelScope(string? levelType, IEnumerable<string>? allowedLevels)
     {
-        return new BenefitLevelScopeDto
+        return new BenefitOfferLevelScopeDto
         {
             LevelType = string.IsNullOrWhiteSpace(levelType) ? null : levelType,
             LevelCode = JoinList(allowedLevels)
         };
     }
 
-    public static BenefitBehaviorRulesDto BuildBehaviorRules(
+    public static BenefitOfferBehaviorRulesDto BuildBehaviorRules(
         bool minFrequencyEnabled,
         int? minFrequencyValue,
         int? frequencyWindowMonths,
@@ -233,7 +233,7 @@ internal static class BenefitContractMapper
         bool requiresMatilhaApproval,
         string? customRuleText)
     {
-        return new BenefitBehaviorRulesDto
+        return new BenefitOfferBehaviorRulesDto
         {
             MinFrequencyEnabled = minFrequencyEnabled,
             MinFrequencyValue = minFrequencyValue,
@@ -247,13 +247,13 @@ internal static class BenefitContractMapper
         };
     }
 
-    public static BenefitCodeRulesDto BuildCodeRules(
+    public static BenefitOfferCodeRulesDto BuildCodeRules(
         bool requiresAccessCode,
         bool allowAnyActivePartnerCode,
         Guid? specificAccessCodeId,
         string? codeValidationMode)
     {
-        return new BenefitCodeRulesDto
+        return new BenefitOfferCodeRulesDto
         {
             RequiresAccessCode = requiresAccessCode,
             AllowAnyActivePartnerCode = allowAnyActivePartnerCode,

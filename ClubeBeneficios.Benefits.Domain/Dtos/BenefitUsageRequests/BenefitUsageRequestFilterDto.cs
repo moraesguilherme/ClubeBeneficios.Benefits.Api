@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.BenefitRequests;
 
-public class BenefitRequestFilterDto
+public class BenefitUsageRequestFilterDto
 {
     public string? Search { get; set; }
     public Guid? BenefitId { get; set; }

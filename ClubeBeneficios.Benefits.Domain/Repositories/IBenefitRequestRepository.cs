@@ -10,7 +10,7 @@ namespace ClubeBeneficios.Benefits.Domain.Repositories;
 public interface IBenefitRequestRepository
 {
     Task<Guid> CreateAsync(
-        CreateBenefitRequestDto request,
+        CreateBenefitUsageRequest request,
         Guid? performedByUserId,
         CancellationToken cancellationToken = default);
 
@@ -21,26 +21,26 @@ public interface IBenefitRequestRepository
 
     Task AddReviewAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         Guid? performedByUserId,
         CancellationToken cancellationToken = default);
 
     Task ChangeStatusAsync(
         Guid requestId,
-        ChangeBenefitRequestStatusRequest request,
+        ChangeBenefitUsageRequestStatusRequest request,
         Guid? performedByUserId,
         CancellationToken cancellationToken = default);
 
-    Task<BenefitRequestDetailDto?> GetByIdAsync(
+    Task<BenefitUsageRequestDetailDto?> GetByIdAsync(
         Guid requestId,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResultDto<BenefitRequestListItemDto>> SearchAsync(
-        BenefitRequestFilterDto filter,
+    Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResultDto<BenefitRequestListItemDto>> SearchPendingReviewAsync(
-        BenefitRequestFilterDto filter,
+    Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchPendingReviewAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default);
 
     Task<BenefitRequestApprovalSummaryDto> GetApprovalSummaryAsync(
@@ -62,7 +62,7 @@ public interface IBenefitRequestRepository
         string tokenHash,
         CancellationToken cancellationToken = default);
 
-    Task<BenefitUsageConfirmationConfirmResultDto> ConfirmUsageConfirmationAsync(
+    Task<ConfirmBenefitUsageConfirmationResultDto> ConfirmUsageConfirmationAsync(
         string tokenHash,
         CancellationToken cancellationToken = default);
 }

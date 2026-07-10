@@ -19,49 +19,49 @@ public class BenefitService : IBenefitService
         _benefitRepository = benefitRepository;
     }
 
-    public Task<PagedResultDto<BenefitListItemDto>> GetPagedAsync(
+    public Task<PagedResultDto<BenefitOfferListItemDto>> GetPagedAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default)
         => _benefitRepository.GetPagedAsync(filter, cancellationToken);
 
-    public Task<PagedResultDto<BenefitApprovalItemDto>> GetPendingAsync(
+    public Task<PagedResultDto<BenefitOfferApprovalItemDto>> GetPendingAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default)
         => _benefitRepository.GetPendingAsync(filter, cancellationToken);
 
-    public Task<BenefitDashboardSummaryDto> GetDashboardSummaryAsync(
+    public Task<BenefitOfferDashboardSummaryDto> GetDashboardSummaryAsync(
         CancellationToken cancellationToken = default)
         => _benefitRepository.GetDashboardSummaryAsync(cancellationToken);
 
-    public Task<BenefitFilterOptionsDto> GetFilterOptionsAsync(
+    public Task<BenefitOfferFilterOptionsDto> GetFilterOptionsAsync(
         CancellationToken cancellationToken = default)
         => _benefitRepository.GetFilterOptionsAsync(cancellationToken);
 
-    public Task<BenefitDetailsDto?> GetByIdAsync(
+    public Task<BenefitOfferDetailsDto?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)
         => _benefitRepository.GetByIdAsync(id, cancellationToken);
 
     public Task<Guid> CreateAsync(
-        CreateBenefitRequest request,
+        CreateBenefitOfferRequest request,
         CancellationToken cancellationToken = default)
         => _benefitRepository.CreateAsync(request, cancellationToken);
 
     public Task<bool> UpdateAsync(
         Guid id,
-        UpdateBenefitRequest request,
+        UpdateBenefitOfferRequest request,
         CancellationToken cancellationToken = default)
         => _benefitRepository.UpdateAsync(id, request, cancellationToken);
 
     public Task<bool> ChangeStatusAsync(
         Guid id,
-        ChangeBenefitStatusRequest request,
+        ChangeBenefitOfferStatusRequest request,
         CancellationToken cancellationToken = default)
         => _benefitRepository.ChangeStatusAsync(id, request, cancellationToken);
 
     public Task<bool> AddReviewAsync(
         Guid id,
-        AddBenefitReviewRequest request,
+        AddBenefitOfferReviewRequest request,
         CancellationToken cancellationToken = default)
         => _benefitRepository.AddReviewAsync(id, request, cancellationToken);
 }

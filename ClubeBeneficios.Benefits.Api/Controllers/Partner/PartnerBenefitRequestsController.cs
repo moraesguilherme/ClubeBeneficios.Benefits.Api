@@ -29,7 +29,7 @@ public class PartnerBenefitRequestsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResultDto<PartnerBenefitRequestListItemDto>>> Search(
-        [FromQuery] BenefitRequestFilterDto filter,
+        [FromQuery] BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken)
     {
         var partnerId = GetPartnerId();
@@ -66,7 +66,7 @@ public class PartnerBenefitRequestsController : ControllerBase
     [HttpPut("{requestId:guid}/status")]
     public async Task<IActionResult> ChangeStatus(
         Guid requestId,
-        [FromBody] ChangeBenefitRequestStatusRequest request,
+        [FromBody] ChangeBenefitUsageRequestStatusRequest request,
         CancellationToken cancellationToken)
     {
         var partnerId = GetPartnerId();

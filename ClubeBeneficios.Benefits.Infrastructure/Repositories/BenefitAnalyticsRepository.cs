@@ -15,7 +15,7 @@ public class BenefitAnalyticsRepository : IBenefitAnalyticsRepository
         _connection = connection;
     }
 
-    public async Task<BenefitDashboardSummaryDto> GetDashboardSummaryAsync(BenefitDashboardSummaryFilterDto filter, CancellationToken cancellationToken = default)
+    public async Task<BenefitOfferDashboardSummaryDto> GetDashboardSummaryAsync(BenefitDashboardSummaryFilterDto filter, CancellationToken cancellationToken = default)
     {
         const string sql = @"
                             select
@@ -84,11 +84,11 @@ public class BenefitAnalyticsRepository : IBenefitAnalyticsRepository
             commandType: CommandType.Text,
             cancellationToken: cancellationToken);
 
-        return await _connection.QueryFirstOrDefaultAsync<BenefitDashboardSummaryDto>(command)
-            ?? new BenefitDashboardSummaryDto();
+        return await _connection.QueryFirstOrDefaultAsync<BenefitOfferDashboardSummaryDto>(command)
+            ?? new BenefitOfferDashboardSummaryDto();
     }
 
-    public async Task<IEnumerable<BenefitMetricItemDto>> GetMetricsAsync(BenefitMetricsFilterDto filter, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<BenefitOfferMetricItemDto>> GetMetricsAsync(BenefitMetricsFilterDto filter, CancellationToken cancellationToken = default)
     {
         const string sql = @"
                             select
@@ -138,10 +138,10 @@ public class BenefitAnalyticsRepository : IBenefitAnalyticsRepository
             commandType: CommandType.Text,
             cancellationToken: cancellationToken);
 
-        return await _connection.QueryAsync<BenefitMetricItemDto>(command);
+        return await _connection.QueryAsync<BenefitOfferMetricItemDto>(command);
     }
 
-    public async Task<IEnumerable<BenefitHistoryItemDto>> GetHistoryAsync(BenefitHistoryFilterDto filter, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<BenefitOfferHistoryItemDto>> GetHistoryAsync(BenefitHistoryFilterDto filter, CancellationToken cancellationToken = default)
     {
         const string sql = @"
                             select
@@ -174,6 +174,6 @@ public class BenefitAnalyticsRepository : IBenefitAnalyticsRepository
             commandType: CommandType.Text,
             cancellationToken: cancellationToken);
 
-        return await _connection.QueryAsync<BenefitHistoryItemDto>(command);
+        return await _connection.QueryAsync<BenefitOfferHistoryItemDto>(command);
     }
 }

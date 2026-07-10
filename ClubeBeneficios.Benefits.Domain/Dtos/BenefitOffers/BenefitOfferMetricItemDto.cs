@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitMetricItemDto
+public class BenefitOfferMetricItemDto
 {
     public Guid BenefitId { get; set; }
     public string? MetricCode { get; set; }

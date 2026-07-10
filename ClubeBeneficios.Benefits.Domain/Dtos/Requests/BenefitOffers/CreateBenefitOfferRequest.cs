@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
-public class CreateBenefitRequest
+public class CreateBenefitOfferRequest
 {
     public Guid? PartnerId { get; set; }
     public string? Title { get; set; }

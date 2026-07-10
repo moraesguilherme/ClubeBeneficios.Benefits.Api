@@ -1,6 +1,6 @@
 ﻿namespace ClubeBeneficios.Benefits.Domain.Dtos.BenefitUsages.Confirmations;
 
-public class BenefitUsageConfirmationConfirmResultDto
+public class ConfirmBenefitUsageConfirmationResultDto
 {
     public Guid ConfirmationId { get; set; }
     public Guid BenefitRequestId { get; set; }

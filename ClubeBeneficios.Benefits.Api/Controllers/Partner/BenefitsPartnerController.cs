@@ -115,7 +115,7 @@ public class BenefitsPartnerController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create(
-        [FromBody] CreateBenefitRequest request,
+        [FromBody] CreateBenefitOfferRequest request,
         CancellationToken cancellationToken)
     {
         var partnerId = GetPartnerId();
@@ -136,7 +136,7 @@ public class BenefitsPartnerController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id,
-        [FromBody] UpdateBenefitRequest request,
+        [FromBody] UpdateBenefitOfferRequest request,
         CancellationToken cancellationToken)
     {
         var partnerId = GetPartnerId();
@@ -162,7 +162,7 @@ public class BenefitsPartnerController : ControllerBase
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> ChangeStatus(
         [FromRoute] Guid id,
-        [FromBody] ChangeBenefitStatusRequest request,
+        [FromBody] ChangeBenefitOfferStatusRequest request,
         CancellationToken cancellationToken)
     {
         var partnerId = GetPartnerId();

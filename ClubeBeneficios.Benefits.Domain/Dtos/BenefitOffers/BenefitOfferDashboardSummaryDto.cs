@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitDashboardSummaryDto
+public class BenefitOfferDashboardSummaryDto
 {
     public int TotalBenefits { get; set; }
     public int ActiveBenefits { get; set; }

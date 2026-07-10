@@ -20,30 +20,30 @@ public class BenefitAnalyticsService : IBenefitAnalyticsService
         _currentUser = currentUser;
     }
 
-    public Task<BenefitDashboardSummaryDto> GetAdminDashboardSummaryAsync(BenefitDashboardSummaryFilterDto filter, CancellationToken cancellationToken = default)
+    public Task<BenefitOfferDashboardSummaryDto> GetAdminDashboardSummaryAsync(BenefitDashboardSummaryFilterDto filter, CancellationToken cancellationToken = default)
         => _repository.GetDashboardSummaryAsync(filter, cancellationToken);
 
-    public Task<IEnumerable<BenefitMetricItemDto>> GetAdminMetricsAsync(BenefitMetricsFilterDto filter, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<BenefitOfferMetricItemDto>> GetAdminMetricsAsync(BenefitMetricsFilterDto filter, CancellationToken cancellationToken = default)
         => _repository.GetMetricsAsync(filter, cancellationToken);
 
-    public Task<IEnumerable<BenefitHistoryItemDto>> GetAdminHistoryAsync(BenefitHistoryFilterDto filter, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<BenefitOfferHistoryItemDto>> GetAdminHistoryAsync(BenefitHistoryFilterDto filter, CancellationToken cancellationToken = default)
         => _repository.GetHistoryAsync(filter, cancellationToken);
 
-    public Task<BenefitDashboardSummaryDto> GetPartnerDashboardSummaryAsync(BenefitDashboardSummaryFilterDto filter, CancellationToken cancellationToken = default)
+    public Task<BenefitOfferDashboardSummaryDto> GetPartnerDashboardSummaryAsync(BenefitDashboardSummaryFilterDto filter, CancellationToken cancellationToken = default)
     {
         EnsurePartnerContext();
         filter.PartnerId = _currentUser.PartnerId;
         return _repository.GetDashboardSummaryAsync(filter, cancellationToken);
     }
 
-    public Task<IEnumerable<BenefitMetricItemDto>> GetPartnerMetricsAsync(BenefitMetricsFilterDto filter, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<BenefitOfferMetricItemDto>> GetPartnerMetricsAsync(BenefitMetricsFilterDto filter, CancellationToken cancellationToken = default)
     {
         EnsurePartnerContext();
         filter.PartnerId = _currentUser.PartnerId;
         return _repository.GetMetricsAsync(filter, cancellationToken);
     }
 
-    public Task<IEnumerable<BenefitHistoryItemDto>> GetPartnerHistoryAsync(BenefitHistoryFilterDto filter, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<BenefitOfferHistoryItemDto>> GetPartnerHistoryAsync(BenefitHistoryFilterDto filter, CancellationToken cancellationToken = default)
     {
         EnsurePartnerContext();
         filter.PartnerId = _currentUser.PartnerId;

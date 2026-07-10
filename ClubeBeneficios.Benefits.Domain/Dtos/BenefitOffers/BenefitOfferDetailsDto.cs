@@ -2,7 +2,7 @@
 
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitDetailsDto
+public class BenefitOfferDetailsDto
 {
     public Guid Id { get; set; }
     public Guid? PartnerId { get; set; }
@@ -21,21 +21,21 @@ public class BenefitDetailsDto
     public string? EligibilitySummary { get; set; }
     public List<string> EligibilityChips { get; set; } = new();
 
-    public List<BenefitLevelScopeDto> LevelScopes { get; set; } = new();
+    public List<BenefitOfferLevelScopeDto> LevelScopes { get; set; } = new();
 
-    public BenefitLevelScopeDto? LevelScope
+    public BenefitOfferLevelScopeDto? LevelScope
     {
         get => LevelScopes.FirstOrDefault();
         set
         {
             LevelScopes = value is null
-                ? new List<BenefitLevelScopeDto>()
-                : new List<BenefitLevelScopeDto> { value };
+                ? new List<BenefitOfferLevelScopeDto>()
+                : new List<BenefitOfferLevelScopeDto> { value };
         }
     }
 
-    public BenefitBehaviorRulesDto? BehaviorRules { get; set; }
-    public BenefitCodeRulesDto? CodeRules { get; set; }
+    public BenefitOfferBehaviorRulesDto? BehaviorRules { get; set; }
+    public BenefitOfferCodeRulesDto? CodeRules { get; set; }
 
     public string? RecurrenceType { get; set; }
     public int? RecurrenceLimit { get; set; }

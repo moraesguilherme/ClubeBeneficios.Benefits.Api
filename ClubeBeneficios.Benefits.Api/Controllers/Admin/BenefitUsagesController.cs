@@ -49,7 +49,7 @@ public class BenefitUsagesController : ControllerBase
     }
 
     [HttpPost("validate")]
-    public async Task<ActionResult<BenefitEligibilityValidationResultDto>> Validate(
+    public async Task<ActionResult<BenefitOfferEligibilityValidationResultDto>> Validate(
         [FromBody] ValidateBenefitUsageRequest request,
         CancellationToken cancellationToken)
     {

@@ -11,7 +11,7 @@ namespace ClubeBeneficios.Benefits.Domain.Services;
 public interface IBenefitRequestService
 {
     Task<Guid> CreateAsync(
-        CreateBenefitRequestDto request,
+        CreateBenefitUsageRequest request,
         CancellationToken cancellationToken = default);
 
     Task SubmitHealthAsync(
@@ -21,43 +21,43 @@ public interface IBenefitRequestService
 
     Task AddReviewAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default);
 
     Task ApproveAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default);
 
     Task RequestChangesAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default);
 
     Task RejectAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default);
 
     Task ChangeStatusAsync(
         Guid requestId,
-        ChangeBenefitRequestStatusRequest request,
+        ChangeBenefitUsageRequestStatusRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<BenefitRequestDetailDto?> GetByIdAsync(
+    Task<BenefitUsageRequestDetailDto?> GetByIdAsync(
         Guid requestId,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResultDto<BenefitRequestListItemDto>> SearchAdminAsync(
-        BenefitRequestFilterDto filter,
+    Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchAdminAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResultDto<BenefitRequestListItemDto>> SearchPartnerAsync(
-        BenefitRequestFilterDto filter,
+    Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchPartnerAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResultDto<BenefitRequestListItemDto>> SearchPendingReviewAsync(
-        BenefitRequestFilterDto filter,
+    Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchPendingReviewAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default);
 
     Task<BenefitRequestApprovalSummaryDto> GetApprovalSummaryAsync(
@@ -65,14 +65,14 @@ public interface IBenefitRequestService
 
     Task<BenefitUsageConfirmationPairResultDto> CreateUsageConfirmationPairAsync(
     Guid requestId,
-    CreateBenefitUsageConfirmationPairRequest request,
+    CreateBenefitUsageConfirmationLinksRequest request,
     CancellationToken cancellationToken = default);
 
     Task<BenefitUsageConfirmationTokenDto?> GetUsageConfirmationByTokenAsync(
         string token,
         CancellationToken cancellationToken = default);
 
-    Task<BenefitUsageConfirmationConfirmResultDto> ConfirmUsageConfirmationAsync(
+    Task<ConfirmBenefitUsageConfirmationResultDto> ConfirmUsageConfirmationAsync(
         string token,
         CancellationToken cancellationToken = default);
 }

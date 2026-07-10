@@ -4,6 +4,7 @@ using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Services;
 using System.Security.Claims;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Automation;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Filters;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Admin;
 

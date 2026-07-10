@@ -1,6 +1,6 @@
 ﻿namespace ClubeBeneficios.Benefits.Domain.Dtos.Requests.BenefitUsages.Confirmations;
 
-public class CreateBenefitUsageConfirmationPairRequest
+public class CreateBenefitUsageConfirmationLinksRequest
 {
     public string PartnerRecipientEmail { get; set; } = string.Empty;
     public string? PartnerRecipientName { get; set; }

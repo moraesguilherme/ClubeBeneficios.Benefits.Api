@@ -20,7 +20,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
     }
 
     public async Task<Guid> CreateAsync(
-    CreateBenefitRequestDto request,
+    CreateBenefitUsageRequest request,
     Guid? performedByUserId,
     CancellationToken cancellationToken = default)
     {
@@ -100,7 +100,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
 
     public async Task AddReviewAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         Guid? performedByUserId,
         CancellationToken cancellationToken = default)
     {
@@ -134,7 +134,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
 
     public async Task ChangeStatusAsync(
         Guid requestId,
-        ChangeBenefitRequestStatusRequest request,
+        ChangeBenefitUsageRequestStatusRequest request,
         Guid? performedByUserId,
         CancellationToken cancellationToken = default)
     {
@@ -155,7 +155,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<BenefitRequestDetailDto?> GetByIdAsync(
+    public async Task<BenefitUsageRequestDetailDto?> GetByIdAsync(
     Guid requestId,
     CancellationToken cancellationToken = default)
     {
@@ -186,8 +186,8 @@ public class BenefitRequestRepository : IBenefitRequestRepository
         return detail;
     }
 
-    public async Task<PagedResultDto<BenefitRequestListItemDto>> SearchAsync(
-    BenefitRequestFilterDto filter,
+    public async Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchAsync(
+    BenefitUsageRequestFilterDto filter,
     CancellationToken cancellationToken = default)
     {
         var page = filter.Page <= 0 ? 1 : filter.Page;
@@ -205,7 +205,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
         parameters.Add("@Page", page);
         parameters.Add("@PageSize", pageSize);
 
-        var items = (await _connection.QueryAsync<BenefitRequestListItemDto>(
+        var items = (await _connection.QueryAsync<BenefitUsageRequestListItemDto>(
             new CommandDefinition(
                 "dbo.usp_benefit_requests_admin_search",
                 parameters,
@@ -214,7 +214,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
 
         var totalCount = items.FirstOrDefault()?.TotalCount ?? 0;
 
-        return new PagedResultDto<BenefitRequestListItemDto>
+        return new PagedResultDto<BenefitUsageRequestListItemDto>
         {
             Items = items,
             Page = page,
@@ -223,8 +223,8 @@ public class BenefitRequestRepository : IBenefitRequestRepository
         };
     }
 
-    public async Task<PagedResultDto<BenefitRequestListItemDto>> SearchPendingReviewAsync(
-        BenefitRequestFilterDto filter,
+    public async Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchPendingReviewAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default)
     {
         var page = filter.Page <= 0 ? 1 : filter.Page;
@@ -266,7 +266,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
             page_size = pageSize
         };
 
-        var items = (await _connection.QueryAsync<BenefitRequestListItemDto>(
+        var items = (await _connection.QueryAsync<BenefitUsageRequestListItemDto>(
             new CommandDefinition(
                 itemsSql,
                 parameters,
@@ -275,7 +275,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
 
         var totalCount = items.FirstOrDefault()?.TotalCount ?? 0;
 
-        return new PagedResultDto<BenefitRequestListItemDto>
+        return new PagedResultDto<BenefitUsageRequestListItemDto>
         {
             Items = items,
             Page = page,
@@ -358,7 +358,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
                 cancellationToken: cancellationToken));
     }
 
-    public async Task<BenefitUsageConfirmationConfirmResultDto> ConfirmUsageConfirmationAsync(
+    public async Task<ConfirmBenefitUsageConfirmationResultDto> ConfirmUsageConfirmationAsync(
         string tokenHash,
         CancellationToken cancellationToken = default)
     {
@@ -366,7 +366,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
 
         parameters.Add("@TokenHash", tokenHash);
 
-        var result = await _connection.QuerySingleAsync<BenefitUsageConfirmationConfirmResultDto>(
+        var result = await _connection.QuerySingleAsync<ConfirmBenefitUsageConfirmationResultDto>(
             new CommandDefinition(
                 "dbo.usp_benefit_usage_confirmation_confirm",
                 parameters,
@@ -376,7 +376,7 @@ public class BenefitRequestRepository : IBenefitRequestRepository
         return result;
     }
 
-    private sealed class BenefitRequestDetailRow : BenefitRequestDetailDto
+    private sealed class BenefitRequestDetailRow : BenefitUsageRequestDetailDto
     {
         public Guid? VaccinationCardId { get; set; }
         public string? VaccinationCardSourceType { get; set; }
@@ -415,9 +415,9 @@ public class BenefitRequestRepository : IBenefitRequestRepository
         public DateTime? FleaTickReviewedAt { get; set; }
         public Guid? FleaTickReviewedByUserId { get; set; }
 
-        public BenefitRequestDetailDto ToDetailDto()
+        public BenefitUsageRequestDetailDto ToDetailDto()
         {
-            return new BenefitRequestDetailDto
+            return new BenefitUsageRequestDetailDto
             {
                 Id = Id,
 

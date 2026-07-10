@@ -2,7 +2,7 @@ using System;
 
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Requests.BenefitRequests;
 
-public class CreateBenefitRequestDto
+public class CreateBenefitUsageRequest
 {
     public Guid BenefitId { get; set; }
 

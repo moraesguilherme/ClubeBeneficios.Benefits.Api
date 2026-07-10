@@ -24,7 +24,7 @@ public class BenefitRepository : IBenefitRepository
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' ou 'ClubeBeneficiosDb' nÃ£o encontrada.");
     }
 
-    public async Task<PagedResultDto<BenefitListItemDto>> GetPagedAsync(
+    public async Task<PagedResultDto<BenefitOfferListItemDto>> GetPagedAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default)
     {
@@ -126,9 +126,9 @@ public class BenefitRepository : IBenefitRepository
 
         using var connection = await OpenConnectionAsync(cancellationToken);
         var totalCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
-        var items = (await connection.QueryAsync<BenefitListItemDto>(new CommandDefinition(itemsSql, parameters, cancellationToken: cancellationToken))).ToList();
+        var items = (await connection.QueryAsync<BenefitOfferListItemDto>(new CommandDefinition(itemsSql, parameters, cancellationToken: cancellationToken))).ToList();
 
-        return new PagedResultDto<BenefitListItemDto>
+        return new PagedResultDto<BenefitOfferListItemDto>
         {
             Items = items,
             Page = page,
@@ -137,7 +137,7 @@ public class BenefitRepository : IBenefitRepository
         };
     }
 
-    public async Task<PagedResultDto<BenefitApprovalItemDto>> GetPendingAsync(
+    public async Task<PagedResultDto<BenefitOfferApprovalItemDto>> GetPendingAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default)
     {
@@ -208,9 +208,9 @@ public class BenefitRepository : IBenefitRepository
 
         using var connection = await OpenConnectionAsync(cancellationToken);
         var totalCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
-        var items = (await connection.QueryAsync<BenefitApprovalItemDto>(new CommandDefinition(itemsSql, parameters, cancellationToken: cancellationToken))).ToList();
+        var items = (await connection.QueryAsync<BenefitOfferApprovalItemDto>(new CommandDefinition(itemsSql, parameters, cancellationToken: cancellationToken))).ToList();
 
-        return new PagedResultDto<BenefitApprovalItemDto>
+        return new PagedResultDto<BenefitOfferApprovalItemDto>
         {
             Items = items,
             Page = page,
@@ -219,7 +219,7 @@ public class BenefitRepository : IBenefitRepository
         };
     }
 
-    public async Task<BenefitDashboardSummaryDto> GetDashboardSummaryAsync(CancellationToken cancellationToken = default)
+    public async Task<BenefitOfferDashboardSummaryDto> GetDashboardSummaryAsync(CancellationToken cancellationToken = default)
     {
         const string sql = @"
                             SELECT
@@ -233,11 +233,11 @@ public class BenefitRepository : IBenefitRepository
                             FROM dbo.vw_benefits_admin_list b;";
 
         using var connection = await OpenConnectionAsync(cancellationToken);
-        var result = await connection.QueryFirstOrDefaultAsync<BenefitDashboardSummaryDto>(new CommandDefinition(sql, cancellationToken: cancellationToken));
-        return result ?? new BenefitDashboardSummaryDto();
+        var result = await connection.QueryFirstOrDefaultAsync<BenefitOfferDashboardSummaryDto>(new CommandDefinition(sql, cancellationToken: cancellationToken));
+        return result ?? new BenefitOfferDashboardSummaryDto();
     }
 
-    public async Task<BenefitFilterOptionsDto> GetFilterOptionsAsync(CancellationToken cancellationToken = default)
+    public async Task<BenefitOfferFilterOptionsDto> GetFilterOptionsAsync(CancellationToken cancellationToken = default)
     {
         const string sql = @"
                             SELECT DISTINCT status AS Code, status AS Label
@@ -273,7 +273,7 @@ public class BenefitRepository : IBenefitRepository
         var eligibilityOptions = (await multi.ReadAsync<LookupOptionDto>()).ToList();
         var partnerOptions = (await multi.ReadAsync<LookupOptionDto>()).ToList();
 
-        return new BenefitFilterOptionsDto
+        return new BenefitOfferFilterOptionsDto
         {
             Origins = directionOptions,
             Statuses = statusOptions,
@@ -285,7 +285,7 @@ public class BenefitRepository : IBenefitRepository
         };
     }
 
-    public async Task<BenefitDetailsDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<BenefitOfferDetailsDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         const string sql = @"
                             SELECT TOP (1)
@@ -357,17 +357,17 @@ public class BenefitRepository : IBenefitRepository
         using var connection = await OpenConnectionAsync(cancellationToken);
         using var multi = await connection.QueryMultipleAsync(new CommandDefinition(sql, new { Id = id }, cancellationToken: cancellationToken));
 
-        var dto = await multi.ReadFirstOrDefaultAsync<BenefitDetailsDto>();
+        var dto = await multi.ReadFirstOrDefaultAsync<BenefitOfferDetailsDto>();
         if (dto is null)
             return null;
 
-        dto.LevelScopes = (await multi.ReadAsync<BenefitLevelScopeDto>()).ToList();
-        dto.BehaviorRules = await multi.ReadFirstOrDefaultAsync<BenefitBehaviorRulesDto>();
-        dto.CodeRules = await multi.ReadFirstOrDefaultAsync<BenefitCodeRulesDto>();
+        dto.LevelScopes = (await multi.ReadAsync<BenefitOfferLevelScopeDto>()).ToList();
+        dto.BehaviorRules = await multi.ReadFirstOrDefaultAsync<BenefitOfferBehaviorRulesDto>();
+        dto.CodeRules = await multi.ReadFirstOrDefaultAsync<BenefitOfferCodeRulesDto>();
         return dto;
     }
 
-    public async Task<Guid> CreateAsync(CreateBenefitRequest request, CancellationToken cancellationToken = default)
+    public async Task<Guid> CreateAsync(CreateBenefitOfferRequest request, CancellationToken cancellationToken = default)
     {
         using var connection = await OpenConnectionAsync(cancellationToken);
 
@@ -397,7 +397,7 @@ public class BenefitRepository : IBenefitRepository
             cancellationToken: cancellationToken));
     }
 
-    public async Task<bool> UpdateAsync(Guid id, UpdateBenefitRequest request, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(Guid id, UpdateBenefitOfferRequest request, CancellationToken cancellationToken = default)
     {
         var currentStatus = await GetCurrentStatusAsync(id, cancellationToken);
 
@@ -441,7 +441,7 @@ public class BenefitRepository : IBenefitRepository
         return true;
     }
 
-    public async Task<bool> ChangeStatusAsync(Guid id, ChangeBenefitStatusRequest request, CancellationToken cancellationToken = default)
+    public async Task<bool> ChangeStatusAsync(Guid id, ChangeBenefitOfferStatusRequest request, CancellationToken cancellationToken = default)
     {
         using var connection = await OpenConnectionAsync(cancellationToken);
 
@@ -462,7 +462,7 @@ public class BenefitRepository : IBenefitRepository
 
     public async Task<bool> AddReviewAsync(
     Guid id,
-    AddBenefitReviewRequest request,
+    AddBenefitOfferReviewRequest request,
     CancellationToken cancellationToken = default)
     {
         using var connection = await OpenConnectionAsync(cancellationToken);
@@ -483,7 +483,7 @@ public class BenefitRepository : IBenefitRepository
         return true;
     }
 
-    private static DynamicParameters BuildCreateParameters(CreateBenefitRequest request)
+    private static DynamicParameters BuildCreateParameters(CreateBenefitOfferRequest request)
     {
         var parameters = new DynamicParameters();
 
@@ -531,7 +531,7 @@ public class BenefitRepository : IBenefitRepository
         return parameters;
     }
 
-    private static DynamicParameters BuildUpdateParameters(Guid id, UpdateBenefitRequest request)
+    private static DynamicParameters BuildUpdateParameters(Guid id, UpdateBenefitOfferRequest request)
     {
         var parameters = new DynamicParameters();
 

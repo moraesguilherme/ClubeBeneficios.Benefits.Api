@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
-public class ReviewBenefitRequest
+public class ReviewBenefitOfferRequest
 {
     public string? ReviewStatus { get; set; }
     public string? ReviewPoint { get; set; }

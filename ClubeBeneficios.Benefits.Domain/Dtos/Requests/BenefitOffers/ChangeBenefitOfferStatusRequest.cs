@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
-public class ChangeBenefitStatusRequest
+public class ChangeBenefitOfferStatusRequest
 {
     public string? Status { get; set; }
     public string? Reason { get; set; }

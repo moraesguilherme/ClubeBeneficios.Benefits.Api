@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
-public class UpdateBenefitRequest
+public class UpdateBenefitOfferRequest
 {
     public string? Title { get; set; }
     public string? BenefitType { get; set; }

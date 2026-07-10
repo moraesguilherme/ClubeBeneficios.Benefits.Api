@@ -10,40 +10,40 @@ namespace ClubeBeneficios.Benefits.Domain.Repositories;
 
 public interface IBenefitRepository
 {
-    Task<PagedResultDto<BenefitListItemDto>> GetPagedAsync(
+    Task<PagedResultDto<BenefitOfferListItemDto>> GetPagedAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResultDto<BenefitApprovalItemDto>> GetPendingAsync(
+    Task<PagedResultDto<BenefitOfferApprovalItemDto>> GetPendingAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default);
 
-    Task<BenefitDashboardSummaryDto> GetDashboardSummaryAsync(
+    Task<BenefitOfferDashboardSummaryDto> GetDashboardSummaryAsync(
         CancellationToken cancellationToken = default);
 
-    Task<BenefitFilterOptionsDto> GetFilterOptionsAsync(
+    Task<BenefitOfferFilterOptionsDto> GetFilterOptionsAsync(
         CancellationToken cancellationToken = default);
 
-    Task<BenefitDetailsDto?> GetByIdAsync(
+    Task<BenefitOfferDetailsDto?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default);
 
     Task<Guid> CreateAsync(
-        CreateBenefitRequest request,
+        CreateBenefitOfferRequest request,
         CancellationToken cancellationToken = default);
 
     Task<bool> UpdateAsync(
         Guid id,
-        UpdateBenefitRequest request,
+        UpdateBenefitOfferRequest request,
         CancellationToken cancellationToken = default);
 
     Task<bool> ChangeStatusAsync(
         Guid id,
-        ChangeBenefitStatusRequest request,
+        ChangeBenefitOfferStatusRequest request,
         CancellationToken cancellationToken = default);
 
     Task<bool> AddReviewAsync(
         Guid id,
-        AddBenefitReviewRequest request,
+        AddBenefitOfferReviewRequest request,
         CancellationToken cancellationToken = default);
 }

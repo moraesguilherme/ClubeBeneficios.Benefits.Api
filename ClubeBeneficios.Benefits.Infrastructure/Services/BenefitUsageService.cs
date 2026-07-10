@@ -79,7 +79,7 @@ public class BenefitUsageService : IBenefitUsageService
         return _repository.SearchAsync(filter, cancellationToken);
     }
 
-    public Task<BenefitEligibilityValidationResultDto?> ValidateAsync(
+    public Task<BenefitOfferEligibilityValidationResultDto?> ValidateAsync(
         ValidateBenefitUsageRequest request,
         CancellationToken cancellationToken = default)
     {

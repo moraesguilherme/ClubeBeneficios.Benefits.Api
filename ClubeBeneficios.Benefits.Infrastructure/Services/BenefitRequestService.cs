@@ -32,7 +32,7 @@ public class BenefitRequestService : IBenefitRequestService
     }
 
     public Task<Guid> CreateAsync(
-    CreateBenefitRequestDto request,
+    CreateBenefitUsageRequest request,
     CancellationToken cancellationToken = default)
     => _repository.CreateAsync(request, _currentUser.UserId, cancellationToken);
 
@@ -44,7 +44,7 @@ public class BenefitRequestService : IBenefitRequestService
 
     public Task AddReviewAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default)
     {
         request.ReviewedByUserId = _currentUser.UserId;
@@ -53,7 +53,7 @@ public class BenefitRequestService : IBenefitRequestService
 
     public Task ApproveAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default)
     {
         request.ReviewStatus = "approved";
@@ -64,7 +64,7 @@ public class BenefitRequestService : IBenefitRequestService
 
     public Task RequestChangesAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default)
     {
         request.ReviewStatus = "under_review";
@@ -80,7 +80,7 @@ public class BenefitRequestService : IBenefitRequestService
 
     public Task RejectAsync(
         Guid requestId,
-        AddBenefitRequestReviewRequest request,
+        AddBenefitUsageRequestReviewRequest request,
         CancellationToken cancellationToken = default)
     {
         request.ReviewStatus = "rejected";
@@ -91,30 +91,30 @@ public class BenefitRequestService : IBenefitRequestService
 
     public Task ChangeStatusAsync(
         Guid requestId,
-        ChangeBenefitRequestStatusRequest request,
+        ChangeBenefitUsageRequestStatusRequest request,
         CancellationToken cancellationToken = default)
         => _repository.ChangeStatusAsync(requestId, request, _currentUser.UserId, cancellationToken);
 
-    public Task<BenefitRequestDetailDto?> GetByIdAsync(
+    public Task<BenefitUsageRequestDetailDto?> GetByIdAsync(
         Guid requestId,
         CancellationToken cancellationToken = default)
         => _repository.GetByIdAsync(requestId, cancellationToken);
 
-    public Task<PagedResultDto<BenefitRequestListItemDto>> SearchAdminAsync(
-        BenefitRequestFilterDto filter,
+    public Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchAdminAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default)
         => _repository.SearchAsync(filter, cancellationToken);
 
-    public Task<PagedResultDto<BenefitRequestListItemDto>> SearchPartnerAsync(
-        BenefitRequestFilterDto filter,
+    public Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchPartnerAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default)
     {
         filter.PartnerId = _currentUser.PartnerId;
         return _repository.SearchAsync(filter, cancellationToken);
     }
 
-    public Task<PagedResultDto<BenefitRequestListItemDto>> SearchPendingReviewAsync(
-        BenefitRequestFilterDto filter,
+    public Task<PagedResultDto<BenefitUsageRequestListItemDto>> SearchPendingReviewAsync(
+        BenefitUsageRequestFilterDto filter,
         CancellationToken cancellationToken = default)
         => _repository.SearchPendingReviewAsync(filter, cancellationToken);
 
@@ -124,7 +124,7 @@ public class BenefitRequestService : IBenefitRequestService
 
     public async Task<BenefitUsageConfirmationPairResultDto> CreateUsageConfirmationPairAsync(
     Guid requestId,
-    CreateBenefitUsageConfirmationPairRequest request,
+    CreateBenefitUsageConfirmationLinksRequest request,
     CancellationToken cancellationToken = default)
     {
         if (request is null)
@@ -194,7 +194,7 @@ public class BenefitRequestService : IBenefitRequestService
             cancellationToken);
     }
 
-    public async Task<BenefitUsageConfirmationConfirmResultDto> ConfirmUsageConfirmationAsync(
+    public async Task<ConfirmBenefitUsageConfirmationResultDto> ConfirmUsageConfirmationAsync(
         string token,
         CancellationToken cancellationToken = default)
     {

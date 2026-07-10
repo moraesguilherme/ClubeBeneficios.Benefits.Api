@@ -13,5 +13,5 @@ public interface IBenefitUsageService
     Task<BenefitUsageDetailDto?> GetByIdAsync(Guid usageId, CancellationToken cancellationToken = default);
     Task<PagedResultDto<BenefitUsageListItemDto>> SearchAdminAsync(BenefitUsageFilterDto filter, CancellationToken cancellationToken = default);
     Task<PagedResultDto<BenefitUsageListItemDto>> SearchPartnerAsync(BenefitUsageFilterDto filter, CancellationToken cancellationToken = default);
-    Task<BenefitEligibilityValidationResultDto?> ValidateAsync(ValidateBenefitUsageRequest request, CancellationToken cancellationToken = default);
+    Task<BenefitOfferEligibilityValidationResultDto?> ValidateAsync(ValidateBenefitUsageRequest request, CancellationToken cancellationToken = default);
 }

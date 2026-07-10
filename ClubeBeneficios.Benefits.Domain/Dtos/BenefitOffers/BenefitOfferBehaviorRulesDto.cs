@@ -1,6 +1,6 @@
 ﻿namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitBehaviorRulesDto
+public class BenefitOfferBehaviorRulesDto
 {
     public bool MinFrequencyEnabled { get; set; }
     public int? MinFrequencyValue { get; set; }

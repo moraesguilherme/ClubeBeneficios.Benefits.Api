@@ -1,6 +1,6 @@
 ﻿namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitLevelScopeDto
+public class BenefitOfferLevelScopeDto
 {
     public string? LevelType { get; set; }
 

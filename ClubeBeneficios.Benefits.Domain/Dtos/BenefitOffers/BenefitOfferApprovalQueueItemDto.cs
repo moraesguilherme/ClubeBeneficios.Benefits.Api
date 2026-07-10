@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitApprovalQueueItemDto
+public class BenefitOfferApprovalQueueItemDto
 {
     public Guid Id { get; set; }
     public Guid? PartnerId { get; set; }

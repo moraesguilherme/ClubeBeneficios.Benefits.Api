@@ -67,7 +67,7 @@ public class BenefitsAdminController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create(
-        [FromBody] CreateBenefitRequest request,
+        [FromBody] CreateBenefitOfferRequest request,
         CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
@@ -88,7 +88,7 @@ public class BenefitsAdminController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(
         Guid id,
-        [FromBody] UpdateBenefitRequest request,
+        [FromBody] UpdateBenefitOfferRequest request,
         CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
@@ -106,7 +106,7 @@ public class BenefitsAdminController : ControllerBase
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> ChangeStatus(
         Guid id,
-        [FromBody] ChangeBenefitStatusRequest request,
+        [FromBody] ChangeBenefitOfferStatusRequest request,
         CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
@@ -124,7 +124,7 @@ public class BenefitsAdminController : ControllerBase
     [HttpPost("{id:guid}/reviews")]
     public async Task<IActionResult> AddReview(
         Guid id,
-        [FromBody] AddBenefitReviewRequest request,
+        [FromBody] AddBenefitOfferReviewRequest request,
         CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();

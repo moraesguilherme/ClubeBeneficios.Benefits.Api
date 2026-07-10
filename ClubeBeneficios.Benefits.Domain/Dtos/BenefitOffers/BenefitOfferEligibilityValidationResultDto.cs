@@ -1,6 +1,6 @@
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitEligibilityValidationResultDto
+public class BenefitOfferEligibilityValidationResultDto
 {
     public bool IsAllowed { get; set; }
     public string? BlockReason { get; set; }

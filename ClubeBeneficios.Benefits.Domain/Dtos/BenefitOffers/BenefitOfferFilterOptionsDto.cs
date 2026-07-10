@@ -2,7 +2,7 @@ using ClubeBeneficios.Benefits.Domain.Dtos.Lookups;
 
 namespace ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
 
-public class BenefitFilterOptionsDto
+public class BenefitOfferFilterOptionsDto
 {
     public IReadOnlyCollection<LookupOptionDto> Origins { get; set; } = Array.Empty<LookupOptionDto>();
     public IReadOnlyCollection<LookupOptionDto> Statuses { get; set; } = Array.Empty<LookupOptionDto>();
