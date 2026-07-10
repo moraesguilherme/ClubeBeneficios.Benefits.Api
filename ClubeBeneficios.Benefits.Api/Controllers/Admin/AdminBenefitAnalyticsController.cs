@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Services;
 using System.Security.Claims;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Automation;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Admin;
 

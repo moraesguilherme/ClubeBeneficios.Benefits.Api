@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using ClubeBeneficios.Benefits.Domain.Dtos;
+using ClubeBeneficios.Benefits.Domain.Dtos.Health;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers;
 

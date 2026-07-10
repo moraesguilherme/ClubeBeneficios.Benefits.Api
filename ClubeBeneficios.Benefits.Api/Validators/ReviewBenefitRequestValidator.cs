@@ -1,5 +1,5 @@
 using FluentValidation;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
 namespace ClubeBeneficios.Benefits.Api.Validators;
 

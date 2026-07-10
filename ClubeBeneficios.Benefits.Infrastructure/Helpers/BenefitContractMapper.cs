@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ClubeBeneficios.Benefits.Domain.Constants;
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
 namespace ClubeBeneficios.Benefits.Infrastructure.Helpers;
 

@@ -3,6 +3,10 @@ using Dapper;
 using ClubeBeneficios.Benefits.Domain.Dtos;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Repositories;
+using ClubeBeneficios.Benefits.Domain.Dtos.Common;
+using ClubeBeneficios.Benefits.Domain.Dtos.BenefitRequests;
+using ClubeBeneficios.Benefits.Domain.Dtos.BenefitUsages.Confirmations;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.BenefitRequests;
 
 namespace ClubeBeneficios.Benefits.Infrastructure.Repositories;
 

@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Services;
+using ClubeBeneficios.Benefits.Domain.Dtos.Common;
+using ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.BenefitUsages;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.BenefitUsages;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Admin;
 

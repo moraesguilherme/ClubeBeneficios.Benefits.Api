@@ -1,5 +1,5 @@
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Automation;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Automation;
 using ClubeBeneficios.Benefits.Domain.Repositories;
 using ClubeBeneficios.Benefits.Domain.Services;
 

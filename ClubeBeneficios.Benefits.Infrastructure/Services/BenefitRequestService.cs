@@ -1,5 +1,10 @@
 using ClubeBeneficios.Benefits.Domain.Dtos;
+using ClubeBeneficios.Benefits.Domain.Dtos.BenefitRequests;
+using ClubeBeneficios.Benefits.Domain.Dtos.BenefitUsages.Confirmations;
+using ClubeBeneficios.Benefits.Domain.Dtos.Common;
 using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.BenefitRequests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.BenefitUsages.Confirmations;
 using ClubeBeneficios.Benefits.Domain.Repositories;
 using ClubeBeneficios.Benefits.Domain.Security;
 using ClubeBeneficios.Benefits.Domain.Services;

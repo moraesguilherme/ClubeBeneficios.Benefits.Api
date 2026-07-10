@@ -1,7 +1,7 @@
 ﻿using System.Data;
 using Dapper;
-using ClubeBeneficios.Benefits.Domain.Dtos;
 using ClubeBeneficios.Benefits.Domain.Repositories;
+using ClubeBeneficios.Benefits.Domain.Dtos.Lookups;
 
 namespace ClubeBeneficios.Benefits.Infrastructure.Repositories;
 

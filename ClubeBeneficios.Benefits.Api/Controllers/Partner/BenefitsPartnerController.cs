@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ClubeBeneficios.Benefits.Api.Mappers;
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
 using ClubeBeneficios.Benefits.Domain.Dtos.Partner;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
 using ClubeBeneficios.Benefits.Domain.Security;
 using ClubeBeneficios.Benefits.Domain.Services;
+using ClubeBeneficios.Benefits.Domain.Dtos.Common;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Filters;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Partner;
 

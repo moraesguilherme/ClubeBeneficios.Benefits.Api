@@ -1,4 +1,4 @@
-using ClubeBeneficios.Benefits.Domain.Dtos;
+using ClubeBeneficios.Benefits.Domain.Dtos.Lookups;
 using ClubeBeneficios.Benefits.Domain.Exceptions;
 using ClubeBeneficios.Benefits.Domain.Repositories;
 using ClubeBeneficios.Benefits.Domain.Security;

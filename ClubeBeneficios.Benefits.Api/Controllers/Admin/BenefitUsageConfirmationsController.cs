@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ClubeBeneficios.Benefits.Domain.Dtos;
 using ClubeBeneficios.Benefits.Domain.Services;
+using ClubeBeneficios.Benefits.Domain.Dtos.BenefitUsages.Confirmations;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers;
 

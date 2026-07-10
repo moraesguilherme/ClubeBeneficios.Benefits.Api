@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Filters;
 using ClubeBeneficios.Benefits.Domain.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

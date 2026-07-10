@@ -1,4 +1,4 @@
-using ClubeBeneficios.Benefits.Domain.Dtos;
+using ClubeBeneficios.Benefits.Domain.Dtos.Lookups;
 
 namespace ClubeBeneficios.Benefits.Domain.Repositories;
 
