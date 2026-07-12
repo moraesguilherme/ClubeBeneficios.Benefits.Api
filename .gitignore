@@ -6,3 +6,4 @@ obj/
 *.cache
 *.pdb
 appsettings.Development.json
+publish/
