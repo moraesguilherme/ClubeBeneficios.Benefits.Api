@@ -1,6 +1,5 @@
 using ClubeBeneficios.Benefits.Api.Extensions;
 using ClubeBeneficios.Benefits.Infrastructure.DependencyInjection;
-using Dapper;
 
 namespace ClubeBeneficios.Benefits.Api;
 
@@ -15,8 +14,6 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
-        DefaultTypeMap.MatchNamesWithUnderscores = true;
-
         services.AddApiControllers();
         services.AddApiSwagger();
         services.AddApiCors();
@@ -30,9 +27,13 @@ public class Startup
     {
         app.UseApiExceptionHandling();
         app.UseApiSwagger();
+
         app.UseHttpsRedirection();
+
         app.UseRouting();
+
         app.UseCors("DefaultPolicy");
+
         app.UseAuthentication();
         app.UseUserContext();
         app.UseAuthorization();

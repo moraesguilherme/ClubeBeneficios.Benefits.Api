@@ -1,8 +1,9 @@
+using System.Security.Claims;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Filters;
+using ClubeBeneficios.Benefits.Domain.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
-using ClubeBeneficios.Benefits.Domain.Services;
 
 namespace ClubeBeneficios.Benefits.Api.Controllers.Admin;
 
@@ -20,56 +21,132 @@ public class BenefitsAdminController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetPaged([FromQuery] BenefitFilterDto filter, CancellationToken cancellationToken)
-        => Ok(await _benefitService.GetAdminPagedAsync(filter, cancellationToken));
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] BenefitFilterDto filter,
+        CancellationToken cancellationToken)
+    {
+        var result = await _benefitService.GetPagedAsync(filter, cancellationToken);
+        return Ok(result);
+    }
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken cancellationToken)
-        => Ok(await _benefitService.GetAdminSummaryAsync(cancellationToken));
+    {
+        var result = await _benefitService.GetDashboardSummaryAsync(cancellationToken);
+        return Ok(result);
+    }
 
     [HttpGet("filter-options")]
     public async Task<IActionResult> GetFilterOptions(CancellationToken cancellationToken)
-        => Ok(await _benefitService.GetAdminFilterOptionsAsync(cancellationToken));
+    {
+        var result = await _benefitService.GetFilterOptionsAsync(cancellationToken);
+        return Ok(result);
+    }
 
     [HttpGet("approvals")]
-    public async Task<IActionResult> GetApprovalQueue([FromQuery] BenefitFilterDto filter, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetPending(
+        [FromQuery] BenefitFilterDto filter,
+        CancellationToken cancellationToken)
     {
-        filter.OnlyPendingApproval = true;
-        return Ok(await _benefitService.GetApprovalQueueAsync(filter, cancellationToken));
+        var result = await _benefitService.GetPendingAsync(filter, cancellationToken);
+        return Ok(result);
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetById(
+        Guid id,
+        CancellationToken cancellationToken)
     {
-        var item = await _benefitService.GetAdminByIdAsync(id, cancellationToken);
-        return item is null ? NotFound() : Ok(item);
+        var result = await _benefitService.GetByIdAsync(id, cancellationToken);
+
+        if (result is null)
+            return NotFound();
+
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateBenefitRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateBenefitOfferRequest request,
+        CancellationToken cancellationToken)
     {
-        var id = await _benefitService.CreateAdminAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id }, new { id });
+        var userId = GetCurrentUserId();
+
+        if (userId.HasValue)
+        {
+            request.CreatedByUserId = userId.Value;
+        }
+
+        var id = await _benefitService.CreateAsync(request, cancellationToken);
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id },
+            new { id });
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateBenefitRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateBenefitOfferRequest request,
+        CancellationToken cancellationToken)
     {
-        await _benefitService.UpdateAdminAsync(id, request, cancellationToken);
-        return NoContent();
+        var userId = GetCurrentUserId();
+
+        if (userId.HasValue)
+        {
+            request.UpdatedByUserId = userId.Value;
+        }
+
+        var success = await _benefitService.UpdateAsync(id, request, cancellationToken);
+
+        return success ? NoContent() : NotFound();
     }
 
     [HttpPut("{id:guid}/status")]
-    public async Task<IActionResult> ChangeStatus([FromRoute] Guid id, [FromBody] ChangeBenefitStatusRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ChangeStatus(
+        Guid id,
+        [FromBody] ChangeBenefitOfferStatusRequest request,
+        CancellationToken cancellationToken)
     {
-        await _benefitService.ChangeAdminStatusAsync(id, request, cancellationToken);
-        return NoContent();
+        var userId = GetCurrentUserId();
+
+        if (userId.HasValue)
+        {
+            request.ChangedByUserId = userId.Value;
+        }
+
+        var success = await _benefitService.ChangeStatusAsync(id, request, cancellationToken);
+
+        return success ? NoContent() : NotFound();
     }
 
     [HttpPost("{id:guid}/reviews")]
-    public async Task<IActionResult> AddReview([FromRoute] Guid id, [FromBody] ReviewBenefitRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> AddReview(
+        Guid id,
+        [FromBody] AddBenefitOfferReviewRequest request,
+        CancellationToken cancellationToken)
     {
-        await _benefitService.AddAdminReviewAsync(id, request, cancellationToken);
-        return NoContent();
+        var userId = GetCurrentUserId();
+
+        if (userId.HasValue)
+        {
+            request.ReviewedByUserId = userId.Value;
+        }
+
+        var success = await _benefitService.AddReviewAsync(id, request, cancellationToken);
+
+        return success ? NoContent() : NotFound();
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var userIdValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst("sub")?.Value;
+
+        return Guid.TryParse(userIdValue, out var parsedUserId)
+            ? parsedUserId
+            : null;
     }
 }

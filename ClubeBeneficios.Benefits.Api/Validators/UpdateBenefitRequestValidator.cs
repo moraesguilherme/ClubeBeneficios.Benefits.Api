@@ -1,9 +1,9 @@
 using FluentValidation;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
 namespace ClubeBeneficios.Benefits.Api.Validators;
 
-public class UpdateBenefitRequestValidator : AbstractValidator<UpdateBenefitRequest>
+public class UpdateBenefitRequestValidator : AbstractValidator<UpdateBenefitOfferRequest>
 {
     public UpdateBenefitRequestValidator()
     {
@@ -35,7 +35,12 @@ public class UpdateBenefitRequestValidator : AbstractValidator<UpdateBenefitRequ
             .MaximumLength(300);
 
         RuleFor(x => x.EligibilityChips)
-            .MaximumLength(600);
+            .Must(chips => chips == null || chips.Count <= 12)
+            .WithMessage("É permitido informar no máximo 12 chips de elegibilidade.");
+
+        RuleForEach(x => x.EligibilityChips)
+            .NotEmpty()
+            .MaximumLength(80);
 
         RuleFor(x => x.RecurrenceValue)
             .GreaterThan(0)
@@ -43,6 +48,6 @@ public class UpdateBenefitRequestValidator : AbstractValidator<UpdateBenefitRequ
 
         RuleFor(x => x)
             .Must(x => !x.StartsAt.HasValue || !x.EndsAt.HasValue || x.EndsAt.Value >= x.StartsAt.Value)
-            .WithMessage("A data final deve ser maior ou igual Ã  data inicial.");
+            .WithMessage("A data final deve ser maior ou igual à data inicial.");
     }
 }

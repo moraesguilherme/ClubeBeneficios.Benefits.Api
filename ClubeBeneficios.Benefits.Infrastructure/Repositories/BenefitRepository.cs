@@ -1,518 +1,861 @@
-using System.Data;
-using Dapper;
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+﻿using System.Data;
+using System.Text;
+using ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Common;
+using ClubeBeneficios.Benefits.Domain.Dtos.Lookups;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Filters;
 using ClubeBeneficios.Benefits.Domain.Repositories;
+using ClubeBeneficios.Benefits.Infrastructure.Helpers;
+using Dapper;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 
 namespace ClubeBeneficios.Benefits.Infrastructure.Repositories;
 
 public class BenefitRepository : IBenefitRepository
 {
-    private readonly IDbConnection _connection;
+    private readonly string _connectionString;
 
-    public BenefitRepository(IDbConnection connection)
+    public BenefitRepository(IConfiguration configuration)
     {
-        _connection = connection;
+        _connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? configuration.GetConnectionString("ClubeBeneficiosDb")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' ou 'ClubeBeneficiosDb' nÃ£o encontrada.");
     }
 
-    public async Task<PagedResultDto<BenefitListItemDto>> GetPagedAsync(BenefitFilterDto filter, CancellationToken cancellationToken = default)
+    public async Task<PagedResultDto<BenefitOfferListItemDto>> GetPagedAsync(
+        BenefitFilterDto filter,
+        CancellationToken cancellationToken = default)
     {
-        const string itemsSql = @"
-select
-    b.id as Id,
-    b.partner_id as PartnerId,
-    p.trade_name as PartnerName,
-    b.title as Title,
-    b.benefit_type as BenefitType,
-    b.direction as Direction,
-    case
-        when b.direction = 'partner_to_matilha' then 'Parceiro Ã¢â€ â€™ Matilha'
-        when b.direction = 'matilha_to_partner' then 'Matilha Ã¢â€ â€™ Parceiro'
-        else b.direction
-    end as DirectionLabel,
-    b.status as Status,
-    b.target_actor_type as TargetActorType,
-    case
-        when b.target_actor_type = 'client' then 'Cliente Matilha'
-        when b.target_actor_type = 'partner_customer' then 'Cliente do parceiro'
-        else b.target_actor_type
-    end as TargetActorLabel,
-    b.eligibility_type as EligibilityType,
-    isnull(b.short_description, b.full_description) as EligibilitySummary,
-    case
-        when b.validity_type = 'continuous' then 'ContÃƒÂ­nuo'
-        when b.validity_type = 'date_range' then 'PerÃƒÂ­odo definido'
-        else b.validity_type
-    end as ValidityLabel,
-    concat(
-        isnull(cast(b.recurrence_value as varchar(20)), '0'),
-        ' / ',
-        isnull(b.recurrence_period, '-')
-    ) as RecurrenceLabel,
-    isnull(ms.requests_count, 0) as RequestsCount,
-    isnull(ms.usages_count, 0) as UsagesCount,
-    cast(isnull(ms.conversion_rate, 0) as int) as ConversionRate,
-    p.level as PartnerLevel,
-    b.created_at as CreatedAt,
-    b.updated_at as UpdatedAt
-from dbo.benefits b
-inner join dbo.partners p
-    on p.id = b.partner_id
-left join dbo.benefit_metrics_snapshot ms
-    on ms.benefit_id = b.id
-where (@search is null or b.title like '%' + @search + '%' or p.trade_name like '%' + @search + '%')
-  and (@partner_id is null or b.partner_id = @partner_id)
-  and (@origin is null or p.origin_type = @origin)
-  and (@status is null or b.status = @status)
-  and (@target_actor_type is null or b.target_actor_type = @target_actor_type)
-  and (@eligibility_type is null or b.eligibility_type = @eligibility_type)
-  and (@only_pending_approval = 0 or b.status in ('pending_review', 'under_review', 'approved'))
-order by b.created_at desc
-offset @offset rows fetch next @page_size rows only;
-";
+        var page = GetIntValue(filter, "Page", 1);
+        var pageSize = GetIntValue(filter, "PageSize", 10);
+        var offset = (page - 1) * pageSize;
 
-        const string totalSql = @"
-select count(1)
-from dbo.benefits b
-inner join dbo.partners p
-    on p.id = b.partner_id
-where (@search is null or b.title like '%' + @search + '%' or p.trade_name like '%' + @search + '%')
-  and (@partner_id is null or b.partner_id = @partner_id)
-  and (@origin is null or p.origin_type = @origin)
-  and (@status is null or b.status = @status)
-  and (@target_actor_type is null or b.target_actor_type = @target_actor_type)
-  and (@eligibility_type is null or b.eligibility_type = @eligibility_type)
-  and (@only_pending_approval = 0 or b.status in ('pending_review', 'under_review', 'approved'));
-";
+        var where = new StringBuilder(" WHERE 1 = 1 ");
+        var parameters = new DynamicParameters();
 
-        var parameters = new
-        {
-            search = filter.Search,
-            partner_id = filter.PartnerId,
-            origin = filter.Origin,
-            status = filter.Status,
-            target_actor_type = filter.TargetActorType,
-            eligibility_type = filter.EligibilityType,
-            only_pending_approval = filter.OnlyPendingApproval,
-            offset = (filter.Page - 1) * filter.PageSize,
-            page_size = filter.PageSize
-        };
+        AddCommonListFilters(filter, where, parameters);
+        parameters.Add("OffsetRows", offset);
+        parameters.Add("FetchRows", pageSize);
 
-        var items = (await _connection.QueryAsync<BenefitListItemDto>(
-            new CommandDefinition(itemsSql, parameters, commandType: CommandType.Text, cancellationToken: cancellationToken))).ToList();
+        var countSql = $@"
+                        SELECT COUNT(1)
+                        FROM dbo.vw_benefits_admin_list b
+                        {where};";
 
-        var total = await _connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(totalSql, parameters, commandType: CommandType.Text, cancellationToken: cancellationToken));
+        var itemsSql = $@"
+                        SELECT
+                            b.id AS Id,
+                            b.partner_id AS PartnerId,
+                            b.partner_name AS PartnerName,
+                            b.title AS Title,
+                            b.benefit_type AS BenefitType,
+                            b.direction AS Direction,
+                            CASE
+                                WHEN b.direction = 'partner_to_matilha' THEN 'Parceiro â†’ Cliente Matilha'
+                                WHEN b.direction = 'matilha_to_partner' THEN 'Matilha â†’ Cliente do parceiro'
+                                ELSE b.direction
+                            END AS DirectionLabel,
+                            b.status AS Status,
+                            b.target_actor_type AS TargetActorType,
+                            CASE
+                                WHEN b.target_actor_type = 'client' THEN 'Cliente Matilha'
+                                WHEN b.target_actor_type = 'partner_customer' THEN 'Cliente do parceiro'
+                                ELSE b.target_actor_type
+                            END AS TargetActorLabel,
+                            b.eligibility_type AS EligibilityType,
+                            CASE
+                                WHEN b.eligibility_type = 'open' THEN 'Elegibilidade aberta'
+                                WHEN b.eligibility_type = 'level' THEN 'Elegibilidade por nÃ­vel'
+                                WHEN b.eligibility_type = 'behavior' THEN 'Elegibilidade por comportamento'
+                                WHEN b.eligibility_type = 'code' THEN 'Elegibilidade por cÃ³digo'
+                                WHEN b.eligibility_type = 'hybrid' THEN 'Elegibilidade hÃ­brida'
+                                ELSE b.eligibility_type
+                            END AS EligibilitySummary,
+                            bt.recurrence_type AS RecurrenceType,
+                            bt.recurrence_period AS RecurrencePeriod,
+                            CASE
+                                WHEN bt.recurrence_type = 'once_per_customer' THEN '1x por cliente'
+                                WHEN bt.recurrence_type = 'limited_per_period' THEN CONCAT(
+                                    COALESCE(CAST(bt.recurrence_value AS varchar(10)), '1'),
+                                    'x por ',
+                                    CASE bt.recurrence_period
+                                        WHEN 'day' THEN 'dia'
+                                        WHEN 'week' THEN 'semana'
+                                        WHEN 'month' THEN 'mÃªs'
+                                        WHEN 'quarter' THEN 'trimestre'
+                                        WHEN 'semester' THEN 'semestre'
+                                        WHEN 'year' THEN 'ano'
+                                        ELSE COALESCE(bt.recurrence_period, 'perÃ­odo')
+                                    END
+                                )
+                                WHEN bt.recurrence_type = 'unlimited_within_rule' THEN 'Ilimitado dentro da regra'
+                                WHEN bt.recurrence_type = 'first_use_only' THEN 'Somente primeira utilizaÃ§Ã£o'
+                                ELSE bt.recurrence_type
+                            END AS RecurrenceLabel,
+                            b.validity_type AS ValidityType,
+                            CASE
+                                WHEN b.validity_type = 'continuous' THEN 'ContÃ­nuo'
+                                WHEN b.validity_type IN ('date_range', 'campaign_period')
+                                    AND b.starts_at IS NOT NULL
+                                    AND b.ends_at IS NOT NULL
+                                    THEN CONCAT(CONVERT(varchar(10), b.starts_at, 103), ' atÃ© ', CONVERT(varchar(10), b.ends_at, 103))
+                                WHEN b.validity_type IN ('date_range', 'campaign_period')
+                                    AND b.ends_at IS NOT NULL
+                                    THEN CONCAT('AtÃ© ', CONVERT(varchar(10), b.ends_at, 103))
+                                WHEN b.validity_type IN ('date_range', 'campaign_period')
+                                    AND b.starts_at IS NOT NULL
+                                    THEN CONCAT('A partir de ', CONVERT(varchar(10), b.starts_at, 103))
+                                WHEN b.validity_type = 'until_stock' THEN 'AtÃ© durar o estoque'
+                                ELSE b.validity_type
+                            END AS ValidityLabel,
+                            b.highlight_in_showcase AS HighlightInShowcase,
+                            bt.auto_activate_when_approved AS AutoActivateWhenApproved,
+                            b.requests_count AS RequestsCount,
+                            b.usages_count AS UsagesCount,
+                            CAST(ROUND(ISNULL(b.conversion_rate, 0), 0) AS int) AS ConversionRate,
+                            b.partner_level AS PartnerLevel,
+                            b.created_at AS CreatedAt,
+                            b.updated_at AS UpdatedAt
+                        FROM dbo.vw_benefits_admin_list b
+                        INNER JOIN dbo.benefits bt ON bt.id = b.id
+                        {where}
+                        ORDER BY b.created_at DESC
+                        OFFSET @OffsetRows ROWS FETCH NEXT @FetchRows ROWS ONLY;";
 
-        return new PagedResultDto<BenefitListItemDto>
-        {
-            Items = items,
-            Page = filter.Page,
-            PageSize = filter.PageSize,
-            TotalCount = total
-        };
-    }
+        using var connection = await OpenConnectionAsync(cancellationToken);
+        var totalCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
+        var items = (await connection.QueryAsync<BenefitOfferListItemDto>(new CommandDefinition(itemsSql, parameters, cancellationToken: cancellationToken))).ToList();
 
-    public async Task<PagedResultDto<BenefitApprovalQueueItemDto>> GetApprovalQueueAsync(BenefitFilterDto filter, CancellationToken cancellationToken = default)
-    {
-        const string itemsSql = @"
-select
-    b.id as Id,
-    b.partner_id as PartnerId,
-    p.trade_name as PartnerName,
-    b.title as Title,
-    b.direction as Direction,
-    b.status as Status,
-    case
-        when b.status in ('pending_review', 'under_review') then b.status
-        when b.status = 'approved' and isnull(b.auto_activate_when_approved, 0) = 0 then 'approved_waiting_activation'
-        else b.status
-    end as ApprovalStatus,
-    isnull(b.short_description, b.full_description) as EligibilitySummary,
-    concat(
-        isnull(cast(b.recurrence_value as varchar(20)), '0'),
-        ' / ',
-        isnull(b.recurrence_period, '-')
-    ) as RecurrenceLabel,
-    case
-        when b.validity_type = 'continuous' then 'ContÃƒÂ­nuo'
-        when b.validity_type = 'date_range' then 'PerÃƒÂ­odo definido'
-        else b.validity_type
-    end as ValidityLabel,
-    b.created_at as CreatedAt,
-    b.updated_at as UpdatedAt
-from dbo.benefits b
-inner join dbo.partners p
-    on p.id = b.partner_id
-where b.status in ('pending_review', 'under_review', 'approved')
-  and (@search is null or b.title like '%' + @search + '%' or p.trade_name like '%' + @search + '%')
-  and (@partner_id is null or b.partner_id = @partner_id)
-  and (@origin is null or p.origin_type = @origin)
-  and (@status is null or b.status = @status)
-order by b.created_at desc
-offset @offset rows fetch next @page_size rows only;
-";
-
-        const string totalSql = @"
-select count(1)
-from dbo.benefits b
-inner join dbo.partners p
-    on p.id = b.partner_id
-where b.status in ('pending_review', 'under_review', 'approved')
-  and (@search is null or b.title like '%' + @search + '%' or p.trade_name like '%' + @search + '%')
-  and (@partner_id is null or b.partner_id = @partner_id)
-  and (@origin is null or p.origin_type = @origin)
-  and (@status is null or b.status = @status);
-";
-
-        var parameters = new
-        {
-            search = filter.Search,
-            partner_id = filter.PartnerId,
-            origin = filter.Origin,
-            status = filter.Status,
-            offset = (filter.Page - 1) * filter.PageSize,
-            page_size = filter.PageSize
-        };
-
-        var items = (await _connection.QueryAsync<BenefitApprovalQueueItemDto>(
-            new CommandDefinition(itemsSql, parameters, commandType: CommandType.Text, cancellationToken: cancellationToken))).ToList();
-
-        var total = await _connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(totalSql, parameters, commandType: CommandType.Text, cancellationToken: cancellationToken));
-
-        return new PagedResultDto<BenefitApprovalQueueItemDto>
+        return new PagedResultDto<BenefitOfferListItemDto>
         {
             Items = items,
-            Page = filter.Page,
-            PageSize = filter.PageSize,
-            TotalCount = total
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
         };
     }
 
-    public async Task<BenefitSummaryDto> GetSummaryAsync(Guid? partnerId, CancellationToken cancellationToken = default)
+    public async Task<PagedResultDto<BenefitOfferApprovalItemDto>> GetPendingAsync(
+        BenefitFilterDto filter,
+        CancellationToken cancellationToken = default)
     {
-        const string sql = @"
-select
-    sum(case when b.status = 'active' then 1 else 0 end) as ActiveCount,
-    sum(case when b.status = 'pending_review' then 1 else 0 end) as PendingCount,
-    sum(case when b.status = 'under_review' then 1 else 0 end) as InReviewCount,
-    sum(case when isnull(ms.conversion_rate, 0) < 30 then 1 else 0 end) as LowConversionCount,
-    count(distinct case when p.status in ('active','approved') then p.id end) as ActivePartnersCount,
-    isnull(sum(isnull(ms.requests_count, 0)), 0) as TotalRequests,
-    isnull(sum(isnull(ms.usages_count, 0)), 0) as TotalUsages,
-    cast(case
-        when isnull(sum(isnull(ms.requests_count, 0)), 0) = 0 then 0
-        else (100.0 * isnull(sum(isnull(ms.usages_count, 0)), 0) / nullif(sum(isnull(ms.requests_count, 0)), 0))
-    end as int) as ConversionRate
-from dbo.benefits b
-inner join dbo.partners p
-    on p.id = b.partner_id
-left join dbo.benefit_metrics_snapshot ms
-    on ms.benefit_id = b.id
-where (@partner_id is null or b.partner_id = @partner_id);
-";
+        var page = GetIntValue(filter, "Page", 1);
+        var pageSize = GetIntValue(filter, "PageSize", 10);
+        var offset = (page - 1) * pageSize;
 
-        return await _connection.QueryFirstOrDefaultAsync<BenefitSummaryDto>(
-            new CommandDefinition(sql, new { partner_id = partnerId }, commandType: CommandType.Text, cancellationToken: cancellationToken))
-            ?? new BenefitSummaryDto();
-    }
+        var where = new StringBuilder(" WHERE 1 = 1 ");
+        var parameters = new DynamicParameters();
 
-    public async Task<BenefitFilterOptionsDto> GetFilterOptionsAsync(Guid? partnerId, CancellationToken cancellationToken = default)
-    {
-        const string sql = @"
-select distinct
-    isnull(p.origin_type, '') as Value,
-    isnull(p.origin_type, '') as Label
-from dbo.benefits b
-inner join dbo.partners p on p.id = b.partner_id
-where (@partner_id is null or b.partner_id = @partner_id)
-  and p.origin_type is not null;
+        AddCommonPendingFilters(filter, where, parameters);
+        parameters.Add("OffsetRows", offset);
+        parameters.Add("FetchRows", pageSize);
 
-select distinct
-    b.status as Value,
-    b.status as Label
-from dbo.benefits b
-where (@partner_id is null or b.partner_id = @partner_id)
-  and b.status is not null;
+        var countSql = $@"
+                        SELECT COUNT(1)
+                        FROM dbo.vw_benefits_pending_list b
+                        {where};";
 
-select distinct
-    b.target_actor_type as Value,
-    b.target_actor_type as Label
-from dbo.benefits b
-where (@partner_id is null or b.partner_id = @partner_id)
-  and b.target_actor_type is not null;
+        var itemsSql = $@"
+                        SELECT
+                            b.id AS Id,
+                            b.partner_id AS PartnerId,
+                            b.partner_name AS PartnerName,
+                            b.title AS Title,
+                            b.benefit_type AS BenefitType,
+                            b.direction AS Direction,
+                            CASE
+                                WHEN b.direction = 'partner_to_matilha' THEN 'Parceiro â†’ Cliente Matilha'
+                                WHEN b.direction = 'matilha_to_partner' THEN 'Matilha â†’ Cliente do parceiro'
+                                ELSE b.direction
+                            END AS DirectionLabel,
+                            bt.status AS Status,
+                            CASE
+                                WHEN bt.status = 'pending_review' THEN 'pending_review'
+                                WHEN bt.status = 'under_review' THEN 'under_review'
+                                ELSE bt.status
+                            END AS ApprovalStage,
+                            b.target_actor_type AS TargetActorType,
+                            CASE
+                                WHEN b.target_actor_type = 'client' THEN 'Cliente Matilha'
+                                WHEN b.target_actor_type = 'partner_customer' THEN 'Cliente do parceiro'
+                                ELSE b.target_actor_type
+                            END AS TargetActorLabel,
+                            bt.eligibility_type AS EligibilityType,
+                            CASE
+                                WHEN bt.eligibility_type = 'open' THEN 'Elegibilidade aberta'
+                                WHEN bt.eligibility_type = 'level' THEN 'Elegibilidade por nÃ­vel'
+                                WHEN bt.eligibility_type = 'behavior' THEN 'Elegibilidade por comportamento'
+                                WHEN bt.eligibility_type = 'code' THEN 'Elegibilidade por cÃ³digo'
+                                WHEN bt.eligibility_type = 'hybrid' THEN 'Elegibilidade hÃ­brida'
+                                ELSE bt.eligibility_type
+                            END AS EligibilitySummary,
+                            bt.auto_activate_when_approved AS AutoActivateWhenApproved,
+                            bt.requires_manual_release AS RequiresManualRelease,
+                            bt.highlight_in_showcase AS HighlightInShowcase,
+                            b.review_point AS LastReviewType,
+                            b.review_recommendation AS LastReviewNotes,
+                            CAST(NULL AS varchar(200)) AS LastReviewedBy,
+                            b.reviewed_at AS LastReviewedAt,
+                            bt.created_at AS CreatedAt,
+                            bt.updated_at AS UpdatedAt
+                        FROM dbo.vw_benefits_pending_list b
+                        INNER JOIN dbo.benefits bt ON bt.id = b.id
+                        {where}
+                        ORDER BY bt.created_at DESC
+                        OFFSET @OffsetRows ROWS FETCH NEXT @FetchRows ROWS ONLY;";
 
-select distinct
-    b.eligibility_type as Value,
-    b.eligibility_type as Label
-from dbo.benefits b
-where (@partner_id is null or b.partner_id = @partner_id)
-  and b.eligibility_type is not null;
+        using var connection = await OpenConnectionAsync(cancellationToken);
+        var totalCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
+        var items = (await connection.QueryAsync<BenefitOfferApprovalItemDto>(new CommandDefinition(itemsSql, parameters, cancellationToken: cancellationToken))).ToList();
 
-select distinct
-    cast(p.id as varchar(36)) as Value,
-    p.trade_name as Label
-from dbo.benefits b
-inner join dbo.partners p on p.id = b.partner_id
-where (@partner_id is null or b.partner_id = @partner_id);
-";
-
-        using var multi = await _connection.QueryMultipleAsync(
-            new CommandDefinition(sql, new { partner_id = partnerId }, commandType: CommandType.Text, cancellationToken: cancellationToken));
-
-        return new BenefitFilterOptionsDto
+        return new PagedResultDto<BenefitOfferApprovalItemDto>
         {
-            Origins = (await multi.ReadAsync<LookupItemDto>()).ToList(),
-            Statuses = (await multi.ReadAsync<LookupItemDto>()).ToList(),
-            Audiences = (await multi.ReadAsync<LookupItemDto>()).ToList(),
-            EligibilityTypes = (await multi.ReadAsync<LookupItemDto>()).ToList(),
-            Partners = (await multi.ReadAsync<LookupItemDto>()).ToList()
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
         };
     }
 
-    public async Task<BenefitDetailsDto?> GetByIdAsync(Guid id, Guid? partnerId, bool enforcePartnerOwnership, CancellationToken cancellationToken = default)
+    public async Task<BenefitOfferDashboardSummaryDto> GetDashboardSummaryAsync(CancellationToken cancellationToken = default)
     {
         const string sql = @"
-select top 1
-    b.*,
-    p.trade_name as PartnerName
-from dbo.benefits b
-inner join dbo.partners p
-    on p.id = b.partner_id
-where b.id = @id
-  and (@enforce_partner_ownership = 0 or b.partner_id = @partner_id);
-";
+                            SELECT
+                                COUNT(1) AS TotalBenefits,
+                                SUM(CASE WHEN b.status = 'active' THEN 1 ELSE 0 END) AS ActiveBenefits,
+                                SUM(CASE WHEN b.status IN ('pending_review','under_review') THEN 1 ELSE 0 END) AS PendingBenefits,
+                                SUM(CASE WHEN b.status = 'inactive' THEN 1 ELSE 0 END) AS InactiveBenefits,
+                                ISNULL(SUM(ISNULL(b.requests_count, 0)), 0) AS TotalRequests,
+                                ISNULL(SUM(ISNULL(b.usages_count, 0)), 0) AS TotalUsages,
+                                ISNULL(CAST(AVG(CAST(ISNULL(b.conversion_rate, 0) AS decimal(10,2))) AS int), 0) AS AverageConversionRate
+                            FROM dbo.vw_benefits_admin_list b;";
 
-        return await _connection.QueryFirstOrDefaultAsync<BenefitDetailsDto>(
-            new CommandDefinition(
-                sql,
-                new
-                {
-                    id,
-                    partner_id = partnerId,
-                    enforce_partner_ownership = enforcePartnerOwnership ? 1 : 0
-                },
-                commandType: CommandType.Text,
-                cancellationToken: cancellationToken));
+        using var connection = await OpenConnectionAsync(cancellationToken);
+        var result = await connection.QueryFirstOrDefaultAsync<BenefitOfferDashboardSummaryDto>(new CommandDefinition(sql, cancellationToken: cancellationToken));
+        return result ?? new BenefitOfferDashboardSummaryDto();
     }
 
-    public async Task<Guid> CreateAsync(CreateBenefitRequest request, Guid createdByUserId, Guid? partnerContextId, bool isPartnerScope, CancellationToken cancellationToken = default)
+    public async Task<BenefitOfferFilterOptionsDto> GetFilterOptionsAsync(CancellationToken cancellationToken = default)
     {
-        var createdId = Guid.NewGuid();
-        var partnerId = isPartnerScope ? partnerContextId : request.PartnerId;
-
         const string sql = @"
-insert into dbo.benefits
-(
-    id, partner_id, created_by_user_id, updated_by_user_id, approved_by_user_id, rejected_by_user_id,
-    title, benefit_type, direction, target_actor_type, status,
-    short_description, full_description, internal_notes,
-    eligibility_type, recurrence_type, recurrence_value, recurrence_period,
-    validity_type, starts_at, ends_at,
-    requires_manual_release, auto_activate_when_approved, highlight_in_showcase,
-    allow_first_use_only, requires_active_access_code, requires_partner_availability, requires_matilha_acceptance_rules,
-    stacking_rule, approval_notes, rejection_reason,
-    approved_at, rejected_at, inactivated_at, created_at, updated_at
-)
-values
-(
-    @id, @partner_id, @created_by_user_id, @updated_by_user_id, null, null,
-    @title, @benefit_type, @direction, @target_actor_type, @status,
-    @short_description, @full_description, @internal_notes,
-    @eligibility_type, @recurrence_type, @recurrence_value, @recurrence_period,
-    @validity_type, @starts_at, @ends_at,
-    @requires_manual_release, @auto_activate_when_approved, @highlight_in_showcase,
-    0, 0, 1, 0,
-    @stacking_rule, null, null,
-    null, null, null, sysutcdatetime(), sysutcdatetime()
-);
+                            SELECT DISTINCT status AS Code, status AS Label
+                            FROM dbo.benefits
+                            WHERE status IS NOT NULL
+                            ORDER BY status;
 
-insert into dbo.benefit_status_history
-(
-    benefit_id, from_status, to_status, reason, changed_by_user_id, changed_at
-)
-values
-(
-    @id, null, @status, 'CriaÃƒÂ§ÃƒÂ£o do benefÃƒÂ­cio via API.', @created_by_user_id, sysutcdatetime()
-);
-";
+                            SELECT DISTINCT direction AS Code, direction AS Label
+                            FROM dbo.benefits
+                            WHERE direction IS NOT NULL
+                            ORDER BY direction;
 
-        await _connection.ExecuteAsync(
-            new CommandDefinition(
-                sql,
-                new
-                {
-                    id = createdId,
-                    partner_id = partnerId,
-                    created_by_user_id = createdByUserId,
-                    updated_by_user_id = createdByUserId,
-                    title = request.Title,
-                    benefit_type = request.BenefitType,
-                    direction = request.Direction,
-                    target_actor_type = request.TargetActorType,
-                    status = "pending_review",
-                    short_description = request.ShortDescription,
-                    full_description = request.FullDescription,
-                    internal_notes = request.InternalNotes,
-                    eligibility_type = request.EligibilityType,
-                    recurrence_type = request.RecurrenceType,
-                    recurrence_value = request.RecurrenceValue,
-                    recurrence_period = request.RecurrencePeriod,
-                    validity_type = request.ValidityType,
-                    starts_at = request.StartsAt,
-                    ends_at = request.EndsAt,
-                    requires_manual_release = request.RequiresManualRelease,
-                    auto_activate_when_approved = request.AutoActivateWhenApproved,
-                    highlight_in_showcase = request.HighlightInShowcase,
-                    stacking_rule = request.StackingRule
-                },
-                commandType: CommandType.Text,
-                cancellationToken: cancellationToken));
+                            SELECT DISTINCT target_actor_type AS Code, target_actor_type AS Label
+                            FROM dbo.benefits
+                            WHERE target_actor_type IS NOT NULL
+                            ORDER BY target_actor_type;
 
-        return createdId;
+                            SELECT DISTINCT eligibility_type AS Code, eligibility_type AS Label
+                            FROM dbo.benefits
+                            WHERE eligibility_type IS NOT NULL
+                            ORDER BY eligibility_type;
+
+                            SELECT CAST(p.id AS varchar(36)) AS Code, p.trade_name AS Label
+                            FROM dbo.partners p
+                            ORDER BY p.trade_name;";
+
+        using var connection = await OpenConnectionAsync(cancellationToken);
+        using var multi = await connection.QueryMultipleAsync(new CommandDefinition(sql, cancellationToken: cancellationToken));
+
+        var statusOptions = (await multi.ReadAsync<LookupOptionDto>()).ToList();
+        var directionOptions = (await multi.ReadAsync<LookupOptionDto>()).ToList();
+        var targetActorOptions = (await multi.ReadAsync<LookupOptionDto>()).ToList();
+        var eligibilityOptions = (await multi.ReadAsync<LookupOptionDto>()).ToList();
+        var partnerOptions = (await multi.ReadAsync<LookupOptionDto>()).ToList();
+
+        return new BenefitOfferFilterOptionsDto
+        {
+            Origins = directionOptions,
+            Statuses = statusOptions,
+            Audiences = targetActorOptions,
+            EligibilityTypes = eligibilityOptions,
+            Partners = partnerOptions,
+            Directions = directionOptions,
+            TargetActorTypes = targetActorOptions
+        };
     }
 
-    public Task UpdateAsync(Guid id, UpdateBenefitRequest request, Guid updatedByUserId, Guid? partnerContextId, bool isPartnerScope, CancellationToken cancellationToken = default)
+    public async Task<BenefitOfferDetailsDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         const string sql = @"
-update b
-set
-    b.title = @title,
-    b.benefit_type = @benefit_type,
-    b.target_actor_type = @target_actor_type,
-    b.short_description = @short_description,
-    b.full_description = @full_description,
-    b.internal_notes = @internal_notes,
-    b.eligibility_type = @eligibility_type,
-    b.recurrence_type = @recurrence_type,
-    b.recurrence_value = @recurrence_value,
-    b.recurrence_period = @recurrence_period,
-    b.validity_type = @validity_type,
-    b.starts_at = @starts_at,
-    b.ends_at = @ends_at,
-    b.requires_manual_release = @requires_manual_release,
-    b.auto_activate_when_approved = @auto_activate_when_approved,
-    b.highlight_in_showcase = @highlight_in_showcase,
-    b.stacking_rule = @stacking_rule,
-    b.updated_by_user_id = @updated_by_user_id,
-    b.updated_at = sysutcdatetime()
-from dbo.benefits b
-where b.id = @id
-  and (@enforce_partner_ownership = 0 or b.partner_id = @partner_id);
-";
+                            SELECT TOP (1)
+                                b.id AS Id,
+                                b.partner_id AS PartnerId,
+                                p.trade_name AS PartnerName,
+                                b.title AS Title,
+                                b.benefit_type AS BenefitType,
+                                b.direction AS Direction,
+                                b.status AS Status,
+                                b.target_actor_type AS TargetActorType,
+                                b.short_description AS ShortDescription,
+                                b.full_description AS FullDescription,
+                                b.internal_notes AS InternalNotes,
+                                b.eligibility_type AS EligibilityType,
+                                CASE
+                                    WHEN b.eligibility_type = 'open' THEN 'Elegibilidade aberta'
+                                    WHEN b.eligibility_type = 'level' THEN 'Elegibilidade por nÃ­vel'
+                                    WHEN b.eligibility_type = 'behavior' THEN 'Elegibilidade por comportamento'
+                                    WHEN b.eligibility_type = 'code' THEN 'Elegibilidade por cÃ³digo'
+                                    WHEN b.eligibility_type = 'hybrid' THEN 'Elegibilidade hÃ­brida'
+                                    ELSE b.eligibility_type
+                                END AS EligibilitySummary,
+                                b.recurrence_type AS RecurrenceType,
+                                b.recurrence_value AS RecurrenceLimit,
+                                b.recurrence_period AS RecurrencePeriod,
+                                b.starts_at AS ValidFrom,
+                                b.ends_at AS ValidUntil,
+                                b.auto_activate_when_approved AS AutoActivateWhenApproved,
+                                b.requires_manual_release AS RequiresManualRelease,
+                                b.highlight_in_showcase AS HighlightInShowcase,
+                                b.stacking_rule AS StackingRule,
+                                b.created_at AS CreatedAt,
+                                b.updated_at AS UpdatedAt
+                            FROM dbo.benefits b
+                            LEFT JOIN dbo.partners p ON p.id = b.partner_id
+                            WHERE b.id = @Id;
 
-        return _connection.ExecuteAsync(
-            new CommandDefinition(
-                sql,
-                new
-                {
-                    id,
-                    partner_id = partnerContextId,
-                    enforce_partner_ownership = isPartnerScope ? 1 : 0,
-                    title = request.Title,
-                    benefit_type = request.BenefitType,
-                    target_actor_type = request.TargetActorType,
-                    short_description = request.ShortDescription,
-                    full_description = request.FullDescription,
-                    internal_notes = request.InternalNotes,
-                    eligibility_type = request.EligibilityType,
-                    recurrence_type = request.RecurrenceType,
-                    recurrence_value = request.RecurrenceValue,
-                    recurrence_period = request.RecurrencePeriod,
-                    validity_type = request.ValidityType,
-                    starts_at = request.StartsAt,
-                    ends_at = request.EndsAt,
-                    requires_manual_release = request.RequiresManualRelease,
-                    auto_activate_when_approved = request.AutoActivateWhenApproved,
-                    highlight_in_showcase = request.HighlightInShowcase,
-                    stacking_rule = request.StackingRule,
-                    updated_by_user_id = updatedByUserId
-                },
-                commandType: CommandType.Text,
-                cancellationToken: cancellationToken));
+                            SELECT
+                                level_type AS LevelType,
+                                level_code AS LevelCode
+                            FROM dbo.benefit_level_scopes
+                            WHERE benefit_id = @Id
+                            ORDER BY created_at DESC;
+
+                            SELECT TOP (1)
+                                min_frequency_enabled AS MinFrequencyEnabled,
+                                min_frequency_value AS MinFrequencyValue,
+                                frequency_window_months AS FrequencyWindowMonths,
+                                min_ticket_enabled AS MinTicketEnabled,
+                                min_ticket_value AS MinTicketValue,
+                                ticket_window_months AS TicketWindowMonths,
+                                first_use_only AS FirstUseOnly,
+                                requires_matilha_approval AS RequiresMatilhaApproval,
+                                custom_rule_text AS CustomRuleText
+                            FROM dbo.benefit_behavior_rules
+                            WHERE benefit_id = @Id
+                            ORDER BY created_at DESC;
+
+                            SELECT TOP (1)
+                                requires_access_code AS RequiresAccessCode,
+                                allow_any_active_partner_code AS AllowAnyActivePartnerCode,
+                                specific_access_code_id AS SpecificAccessCodeId,
+                                code_validation_mode AS CodeValidationMode
+                            FROM dbo.benefit_code_rules
+                            WHERE benefit_id = @Id
+                            ORDER BY created_at DESC;";
+
+        using var connection = await OpenConnectionAsync(cancellationToken);
+        using var multi = await connection.QueryMultipleAsync(new CommandDefinition(sql, new { Id = id }, cancellationToken: cancellationToken));
+
+        var dto = await multi.ReadFirstOrDefaultAsync<BenefitOfferDetailsDto>();
+        if (dto is null)
+            return null;
+
+        dto.LevelScopes = (await multi.ReadAsync<BenefitOfferLevelScopeDto>()).ToList();
+        dto.BehaviorRules = await multi.ReadFirstOrDefaultAsync<BenefitOfferBehaviorRulesDto>();
+        dto.CodeRules = await multi.ReadFirstOrDefaultAsync<BenefitOfferCodeRulesDto>();
+        return dto;
     }
 
-    public Task ChangeStatusAsync(Guid id, ChangeBenefitStatusRequest request, Guid changedByUserId, Guid? partnerContextId, bool isPartnerScope, CancellationToken cancellationToken = default)
+    public async Task<Guid> CreateAsync(CreateBenefitOfferRequest request, CancellationToken cancellationToken = default)
     {
-        const string sql = @"
-declare @previous_status varchar(50);
+        using var connection = await OpenConnectionAsync(cancellationToken);
 
-select @previous_status = b.status
-from dbo.benefits b
-where b.id = @id
-  and (@enforce_partner_ownership = 0 or b.partner_id = @partner_id);
+        var parameters = BuildCreateParameters(request);
 
-update b
-set
-    b.status = @status,
-    b.updated_by_user_id = @changed_by_user_id,
-    b.updated_at = sysutcdatetime(),
-    b.approved_by_user_id = case when @status in ('approved','active') then @changed_by_user_id else b.approved_by_user_id end,
-    b.rejected_by_user_id = case when @status = 'rejected' then @changed_by_user_id else b.rejected_by_user_id end,
-    b.approved_at = case when @status in ('approved','active') then sysutcdatetime() else b.approved_at end,
-    b.rejected_at = case when @status = 'rejected' then sysutcdatetime() else b.rejected_at end,
-    b.inactivated_at = case when @status = 'inactive' then sysutcdatetime() else b.inactivated_at end,
-    b.approval_notes = case when @status in ('approved','active') then @reason else b.approval_notes end,
-    b.rejection_reason = case when @status = 'rejected' then @reason else b.rejection_reason end
-from dbo.benefits b
-where b.id = @id
-  and (@enforce_partner_ownership = 0 or b.partner_id = @partner_id);
+        var id = await connection.ExecuteScalarAsync<Guid>(new CommandDefinition(
+            "dbo.usp_benefits_create",
+            parameters,
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: cancellationToken));
 
-insert into dbo.benefit_status_history
-(
-    benefit_id, from_status, to_status, reason, changed_by_user_id, changed_at
-)
-values
-(
-    @id, @previous_status, @status, @reason, @changed_by_user_id, sysutcdatetime()
-);
-";
-
-        return _connection.ExecuteAsync(
-            new CommandDefinition(
-                sql,
-                new
-                {
-                    id,
-                    partner_id = partnerContextId,
-                    enforce_partner_ownership = isPartnerScope ? 1 : 0,
-                    status = request.Status,
-                    reason = request.Reason,
-                    changed_by_user_id = changedByUserId
-                },
-                commandType: CommandType.Text,
-                cancellationToken: cancellationToken));
+        return id;
     }
 
-    public Task AddReviewAsync(Guid id, ReviewBenefitRequest request, Guid reviewedByUserId, CancellationToken cancellationToken = default)
+    private async Task<string?> GetCurrentStatusAsync(Guid id, CancellationToken cancellationToken = default)
     {
         const string sql = @"
-insert into dbo.benefit_reviews
-(
-    id, benefit_id, review_status, review_point, review_recommendation,
-    reviewed_by_user_id, reviewed_at, created_at
-)
-values
-(
-    newid(), @benefit_id, @review_status, @review_point, @review_recommendation,
-    @reviewed_by_user_id, sysutcdatetime(), sysutcdatetime()
-);
-";
+        SELECT TOP (1) status
+        FROM dbo.benefits
+        WHERE id = @Id;";
 
-        return _connection.ExecuteAsync(
-            new CommandDefinition(
-                sql,
-                new
-                {
-                    benefit_id = id,
-                    review_status = request.ReviewStatus,
-                    review_point = request.ReviewPoint,
-                    review_recommendation = request.ReviewRecommendation,
-                    reviewed_by_user_id = reviewedByUserId
-                },
-                commandType: CommandType.Text,
+        using var connection = await OpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
+            sql,
+            new { Id = id },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> UpdateAsync(Guid id, UpdateBenefitOfferRequest request, CancellationToken cancellationToken = default)
+    {
+        var currentStatus = await GetCurrentStatusAsync(id, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(currentStatus))
+            return false;
+
+        using var connection = await OpenConnectionAsync(cancellationToken);
+
+        var parameters = BuildUpdateParameters(id, request);
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "dbo.usp_benefits_update",
+            parameters,
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: cancellationToken));
+
+        var normalizedRequestedStatus = string.IsNullOrWhiteSpace(request.Status)
+            ? null
+            : BenefitContractMapper.NormalizeStatus(request.Status);
+
+        var normalizedCurrentStatus = string.IsNullOrWhiteSpace(currentStatus)
+            ? null
+            : BenefitContractMapper.NormalizeStatus(currentStatus);
+
+        if (!string.IsNullOrWhiteSpace(normalizedRequestedStatus) &&
+            !string.Equals(normalizedRequestedStatus, normalizedCurrentStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            var statusParameters = new DynamicParameters();
+            statusParameters.Add("BenefitId", id);
+            statusParameters.Add("NewStatus", normalizedRequestedStatus);
+            statusParameters.Add("Reason", "Status alterado durante edição do benefício.");
+            statusParameters.Add("ChangedByUserId", request.UpdatedByUserId);
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                "dbo.usp_benefits_change_status",
+                statusParameters,
+                commandType: CommandType.StoredProcedure,
                 cancellationToken: cancellationToken));
+        }
+
+        return true;
+    }
+
+    public async Task<bool> ChangeStatusAsync(Guid id, ChangeBenefitOfferStatusRequest request, CancellationToken cancellationToken = default)
+    {
+        using var connection = await OpenConnectionAsync(cancellationToken);
+
+        var parameters = new DynamicParameters();
+        parameters.Add("BenefitId", id);
+        parameters.Add("NewStatus", BenefitContractMapper.NormalizeStatus(GetStringValue(request, "Status") ?? GetStringValue(request, "NewStatus")));
+        parameters.Add("Reason", GetStringValue(request, "Reason"));
+        parameters.Add("ChangedByUserId", request.ChangedByUserId);
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "dbo.usp_benefits_change_status",
+            parameters,
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: cancellationToken));
+
+        return true;
+    }
+
+    public async Task<bool> AddReviewAsync(
+    Guid id,
+    AddBenefitOfferReviewRequest request,
+    CancellationToken cancellationToken = default)
+    {
+        using var connection = await OpenConnectionAsync(cancellationToken);
+
+        var parameters = new DynamicParameters();
+        parameters.Add("BenefitId", id);
+        parameters.Add("ReviewStatus", NormalizeReviewStatus(request.ReviewStatus));
+        parameters.Add("ReviewPoint", request.ReviewPoint);
+        parameters.Add("ReviewRecommendation", request.ReviewRecommendation);
+        parameters.Add("ReviewedByUserId", request.ReviewedByUserId);
+
+        await connection.ExecuteAsync(new CommandDefinition(
+            "dbo.usp_benefits_add_review",
+            parameters,
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: cancellationToken));
+
+        return true;
+    }
+
+    private static DynamicParameters BuildCreateParameters(CreateBenefitOfferRequest request)
+    {
+        var parameters = new DynamicParameters();
+
+        parameters.Add("PartnerId", request.PartnerId);
+        parameters.Add("Title", request.Title);
+        parameters.Add("BenefitType", request.BenefitType);
+        parameters.Add("Direction", BenefitContractMapper.NormalizeDirection(request.Direction));
+        parameters.Add("TargetActorType", BenefitContractMapper.NormalizeTargetActorType(request.TargetActorType));
+        parameters.Add("ShortDescription", request.ShortDescription);
+        parameters.Add("FullDescription", request.FullDescription);
+        parameters.Add("InternalNotes", request.InternalNotes);
+        parameters.Add("EligibilityType", BenefitContractMapper.NormalizeEligibilityType(request.EligibilityType));
+        parameters.Add("AllowFirstUseOnly", request.FirstUseOnly);
+        parameters.Add("RequiresActiveAccessCode", request.RequiresAccessCode);
+        parameters.Add("RequiresPartnerAvailability", false);
+        parameters.Add("RequiresMatilhaAcceptanceRules", request.RequiresMatilhaApproval);
+        parameters.Add("LevelType", request.LevelType);
+        parameters.Add("LevelCodesCsv", BenefitContractMapper.JoinList(request.AllowedLevels));
+        parameters.Add("MinFrequencyEnabled", request.MinFrequencyEnabled);
+        parameters.Add("MinFrequencyValue", request.MinFrequencyValue);
+        parameters.Add("FrequencyWindowMonths", request.FrequencyWindowMonths);
+        parameters.Add("MinTicketEnabled", request.MinTicketEnabled);
+        parameters.Add("MinTicketValue", request.MinTicketValue);
+        parameters.Add("TicketWindowMonths", request.TicketWindowMonths);
+        parameters.Add("BehaviorFirstUseOnly", request.FirstUseOnly);
+        parameters.Add("BehaviorRequiresMatilhaApproval", request.RequiresMatilhaApproval);
+        parameters.Add("CustomRuleText", request.CustomRuleText);
+        parameters.Add("RequiresAccessCode", request.RequiresAccessCode);
+        parameters.Add("AllowAnyActivePartnerCode", request.AllowAnyActivePartnerCode);
+        parameters.Add("SpecificAccessCodeId", request.SpecificAccessCodeId);
+        parameters.Add("CodeValidationMode", string.IsNullOrWhiteSpace(request.CodeValidationMode) ? "partner_code" : request.CodeValidationMode);
+        parameters.Add("RecurrenceType", BenefitContractMapper.NormalizeRecurrenceType(request.RecurrenceType));
+        parameters.Add("RecurrenceValue", request.RecurrenceValue);
+        parameters.Add("RecurrencePeriod", request.RecurrencePeriod);
+        parameters.Add("ValidityType", BenefitContractMapper.NormalizeValidityType(request.ValidityType));
+        parameters.Add("StartsAt", request.StartsAt);
+        parameters.Add("EndsAt", request.EndsAt);
+        parameters.Add("AutoActivateWhenApproved", request.AutoActivateWhenApproved);
+        parameters.Add("RequiresManualRelease", request.RequiresManualRelease);
+        parameters.Add("HighlightInShowcase", request.HighlightInShowcase);
+        parameters.Add("StackingRule", request.StackingRule);
+        parameters.Add("CreatedByUserId", request.CreatedByUserId);
+        parameters.Add("InitialStatus", BenefitContractMapper.NormalizeStatus(request.Status));
+
+        return parameters;
+    }
+
+    private static DynamicParameters BuildUpdateParameters(Guid id, UpdateBenefitOfferRequest request)
+    {
+        var parameters = new DynamicParameters();
+
+        parameters.Add("BenefitId", id);
+        parameters.Add("PartnerId", request.PartnerId);
+        parameters.Add("Title", request.Title);
+        parameters.Add("BenefitType", request.BenefitType);
+        parameters.Add("Direction", BenefitContractMapper.NormalizeDirection(request.Direction));
+        parameters.Add("TargetActorType", BenefitContractMapper.NormalizeTargetActorType(request.TargetActorType));
+        parameters.Add("ShortDescription", request.ShortDescription);
+        parameters.Add("FullDescription", request.FullDescription);
+        parameters.Add("InternalNotes", request.InternalNotes);
+        parameters.Add("Status", string.IsNullOrWhiteSpace(request.Status) ? null : BenefitContractMapper.NormalizeStatus(request.Status));
+        parameters.Add("EligibilityType", BenefitContractMapper.NormalizeEligibilityType(request.EligibilityType));
+        parameters.Add("AllowFirstUseOnly", request.FirstUseOnly);
+        parameters.Add("RequiresActiveAccessCode", request.RequiresAccessCode);
+        parameters.Add("RequiresPartnerAvailability", false);
+        parameters.Add("RequiresMatilhaAcceptanceRules", request.RequiresMatilhaApproval);
+        parameters.Add("LevelType", request.LevelType);
+        parameters.Add("LevelCodesCsv", BenefitContractMapper.JoinList(request.AllowedLevels));
+        parameters.Add("MinFrequencyEnabled", request.MinFrequencyEnabled);
+        parameters.Add("MinFrequencyValue", request.MinFrequencyValue);
+        parameters.Add("FrequencyWindowMonths", request.FrequencyWindowMonths);
+        parameters.Add("MinTicketEnabled", request.MinTicketEnabled);
+        parameters.Add("MinTicketValue", request.MinTicketValue);
+        parameters.Add("TicketWindowMonths", request.TicketWindowMonths);
+        parameters.Add("BehaviorFirstUseOnly", request.FirstUseOnly);
+        parameters.Add("BehaviorRequiresMatilhaApproval", request.RequiresMatilhaApproval);
+        parameters.Add("CustomRuleText", request.CustomRuleText);
+        parameters.Add("RequiresAccessCode", request.RequiresAccessCode);
+        parameters.Add("AllowAnyActivePartnerCode", request.AllowAnyActivePartnerCode);
+        parameters.Add("SpecificAccessCodeId", request.SpecificAccessCodeId);
+        parameters.Add("CodeValidationMode", string.IsNullOrWhiteSpace(request.CodeValidationMode) ? "partner_code" : request.CodeValidationMode);
+        parameters.Add("RecurrenceType", BenefitContractMapper.NormalizeRecurrenceType(request.RecurrenceType));
+        parameters.Add("RecurrenceValue", request.RecurrenceValue);
+        parameters.Add("RecurrencePeriod", request.RecurrencePeriod);
+        parameters.Add("ValidityType", BenefitContractMapper.NormalizeValidityType(request.ValidityType));
+        parameters.Add("StartsAt", request.StartsAt);
+        parameters.Add("EndsAt", request.EndsAt);
+        parameters.Add("AutoActivateWhenApproved", request.AutoActivateWhenApproved);
+        parameters.Add("RequiresManualRelease", request.RequiresManualRelease);
+        parameters.Add("HighlightInShowcase", request.HighlightInShowcase);
+        parameters.Add("StackingRule", request.StackingRule);
+        parameters.Add("UpdatedByUserId", request.UpdatedByUserId);
+
+        return parameters;
+    }
+
+    private static void AddCommonListFilters(BenefitFilterDto filter, StringBuilder where, DynamicParameters parameters)
+    {
+        AddLikeFilter(filter, where, parameters, "Search", "b.title");
+        AddStringFilter(filter, where, parameters, "Status", "b.status", normalizeStatus: true);
+        AddStringFilter(filter, where, parameters, "Origin", "b.direction");
+        AddStringFilter(filter, where, parameters, "TargetActorType", "b.target_actor_type");
+        AddStringFilter(filter, where, parameters, "EligibilityType", "b.eligibility_type");
+        AddGuidFilter(filter, where, parameters, "PartnerId", "b.partner_id");
+    }
+
+    private static void AddCommonPendingFilters(BenefitFilterDto filter, StringBuilder where, DynamicParameters parameters)
+    {
+        AddLikeFilter(filter, where, parameters, "Search", "b.title");
+        AddStringFilter(filter, where, parameters, "Status", "b.status", normalizeStatus: true);
+        AddStringFilter(filter, where, parameters, "Origin", "b.direction");
+        AddGuidFilter(filter, where, parameters, "PartnerId", "b.partner_id");
+    }
+
+    private static void AddLikeFilter(object source, StringBuilder where, DynamicParameters parameters, string propertyName, string columnName)
+    {
+        var value = GetStringValue(source, propertyName);
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        where.Append($" AND {columnName} LIKE @{propertyName} ");
+        parameters.Add(propertyName, $"%{value.Trim()}%");
+    }
+
+    private static void AddStringFilter(object source, StringBuilder where, DynamicParameters parameters, string propertyName, string columnName, bool normalizeStatus = false)
+    {
+        var value = GetStringValue(source, propertyName);
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        if (normalizeStatus)
+            value = BenefitContractMapper.NormalizeStatus(value);
+
+        where.Append($" AND {columnName} = @{propertyName} ");
+        parameters.Add(propertyName, value);
+    }
+
+    private static void AddGuidFilter(object source, StringBuilder where, DynamicParameters parameters, string propertyName, string columnName)
+    {
+        var value = GetGuidValue(source, propertyName);
+        if (!value.HasValue || value.Value == Guid.Empty)
+            return;
+
+        where.Append($" AND {columnName} = @{propertyName} ");
+        parameters.Add(propertyName, value.Value);
+    }
+
+    private async Task<SqlConnection> OpenConnectionAsync(CancellationToken cancellationToken)
+    {
+        var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        return connection;
+    }
+
+    private static string NormalizeReviewStatus(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+
+        return normalized switch
+        {
+            "approved" => "approved",
+            "aprovado" => "approved",
+
+            "rejected" => "rejected",
+            "reprovado" => "rejected",
+
+            "under_review" => "under_review",
+            "changes_requested" => "under_review",
+            "adjustments_requested" => "under_review",
+            "ajustes_solicitados" => "under_review",
+            "ajuste_solicitado" => "under_review",
+            "solicitar_ajuste" => "under_review",
+
+            "pending_review" => "pending_review",
+            "pendente" => "pending_review",
+
+            _ => throw new InvalidOperationException($"ReviewStatus inválido: '{value}'.")
+        };
+    }
+
+    private static string? GetStringValue(object source, string propertyName)
+        => source.GetType().GetProperty(propertyName)?.GetValue(source)?.ToString();
+
+    private static string? GetFirstStringValue(object source, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            var value = GetStringValue(source, propertyName);
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
+    }
+
+    private static Guid? GetFirstGuidValue(object source, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            var value = GetGuidValue(source, propertyName);
+            if (value.HasValue && value.Value != Guid.Empty)
+                return value;
+        }
+
+        return null;
+    }
+
+    private static Guid? GetGuidValue(object source, string propertyName)
+    {
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+
+        if (value is null)
+            return null;
+
+        if (value is Guid guid)
+            return guid == Guid.Empty ? null : guid;
+
+        var valueType = value.GetType();
+        var underlyingType = Nullable.GetUnderlyingType(valueType);
+        if (underlyingType == typeof(Guid))
+        {
+            var boxed = (Guid?)value;
+            return boxed.HasValue && boxed.Value != Guid.Empty ? boxed.Value : null;
+        }
+
+        if (value is string text && Guid.TryParse(text, out var parsed))
+            return parsed == Guid.Empty ? null : parsed;
+
+        return null;
+    }
+
+    private static bool GetBoolValue(object source, string propertyName)
+    {
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+
+        if (value is null)
+            return false;
+
+        if (value is bool boolean)
+            return boolean;
+
+        var valueType = value.GetType();
+        var underlyingType = Nullable.GetUnderlyingType(valueType);
+        if (underlyingType == typeof(bool))
+        {
+            var boxed = (bool?)value;
+            return boxed ?? false;
+        }
+
+        if (value is string text && bool.TryParse(text, out var parsed))
+            return parsed;
+
+        return false;
+    }
+
+    private static int GetIntValue(object source, string propertyName, int fallback)
+    {
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+
+        if (value is null)
+            return fallback;
+
+        if (value is int integer)
+            return integer;
+
+        var valueType = value.GetType();
+        var underlyingType = Nullable.GetUnderlyingType(valueType);
+        if (underlyingType == typeof(int))
+        {
+            var boxed = (int?)value;
+            return boxed ?? fallback;
+        }
+
+        if (value is string text && int.TryParse(text, out var parsed))
+            return parsed;
+
+        return fallback;
+    }
+
+    private static int? GetNullableIntValue(object source, string propertyName)
+    {
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+
+        if (value is null)
+            return null;
+
+        if (value is int integer)
+            return integer;
+
+        var valueType = value.GetType();
+        var underlyingType = Nullable.GetUnderlyingType(valueType);
+        if (underlyingType == typeof(int))
+            return (int?)value;
+
+        if (value is string text && int.TryParse(text, out var parsed))
+            return parsed;
+
+        return null;
+    }
+
+    private static decimal? GetNullableDecimalValue(object source, string propertyName)
+    {
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+
+        if (value is null)
+            return null;
+
+        if (value is decimal dec)
+            return dec;
+
+        if (value is double dbl)
+            return Convert.ToDecimal(dbl);
+
+        if (value is float flt)
+            return Convert.ToDecimal(flt);
+
+        var valueType = value.GetType();
+        var underlyingType = Nullable.GetUnderlyingType(valueType);
+        if (underlyingType == typeof(decimal))
+            return (decimal?)value;
+
+        if (underlyingType == typeof(double))
+        {
+            var boxed = (double?)value;
+            return boxed.HasValue ? Convert.ToDecimal(boxed.Value) : null;
+        }
+
+        if (underlyingType == typeof(float))
+        {
+            var boxed = (float?)value;
+            return boxed.HasValue ? Convert.ToDecimal(boxed.Value) : null;
+        }
+
+        if (value is string text && decimal.TryParse(text, out var parsed))
+            return parsed;
+
+        return null;
+    }
+
+    private static DateTime? GetNullableDateTimeValue(object source, string propertyName)
+    {
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+
+        if (value is null)
+            return null;
+
+        if (value is DateTime dt)
+            return dt;
+
+        var valueType = value.GetType();
+        var underlyingType = Nullable.GetUnderlyingType(valueType);
+        if (underlyingType == typeof(DateTime))
+            return (DateTime?)value;
+
+        if (value is string text && DateTime.TryParse(text, out var parsed))
+            return parsed;
+
+        return null;
+    }
+
+    private static IEnumerable<string> GetStringListValue(object source, string propertyName)
+    {
+        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+
+        if (value is IEnumerable<string> list)
+            return list;
+
+        if (value is string text)
+            return string.IsNullOrWhiteSpace(text)
+                ? Array.Empty<string>()
+                : text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return Array.Empty<string>();
     }
 }

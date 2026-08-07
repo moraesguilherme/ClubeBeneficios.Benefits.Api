@@ -1,5 +1,7 @@
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.BenefitUsages;
+using ClubeBeneficios.Benefits.Domain.Dtos.Common;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.BenefitUsages;
 
 namespace ClubeBeneficios.Benefits.Domain.Repositories;
 
@@ -9,5 +11,5 @@ public interface IBenefitUsageRepository
     Task CancelAsync(Guid usageId, CancelBenefitUsageRequest request, Guid? performedByUserId, CancellationToken cancellationToken = default);
     Task<BenefitUsageDetailDto?> GetByIdAsync(Guid usageId, CancellationToken cancellationToken = default);
     Task<PagedResultDto<BenefitUsageListItemDto>> SearchAsync(BenefitUsageFilterDto filter, CancellationToken cancellationToken = default);
-    Task<BenefitEligibilityValidationResultDto?> ValidateAsync(ValidateBenefitUsageRequest request, CancellationToken cancellationToken = default);
+    Task<BenefitOfferEligibilityValidationResultDto?> ValidateAsync(ValidateBenefitUsageRequest request, CancellationToken cancellationToken = default);
 }

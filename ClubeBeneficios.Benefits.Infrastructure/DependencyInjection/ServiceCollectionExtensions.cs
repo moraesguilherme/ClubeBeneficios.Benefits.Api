@@ -1,4 +1,5 @@
 using System.Data;
+using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +16,9 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-                services.AddProblemDetails();
+        DefaultTypeMap.MatchNamesWithUnderscores = true;
+
+        services.AddProblemDetails();
 
         services.AddHttpContextAccessor();
 
@@ -26,22 +29,22 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IBenefitRepository, BenefitRepository>();
         services.AddScoped<IBenefitService, BenefitService>();
+
         services.AddScoped<IBenefitRequestRepository, BenefitRequestRepository>();
         services.AddScoped<IBenefitRequestService, BenefitRequestService>();
+
         services.AddScoped<IBenefitUsageRepository, BenefitUsageRepository>();
         services.AddScoped<IBenefitUsageService, BenefitUsageService>();
 
-                services.AddScoped<IBenefitAnalyticsRepository, BenefitAnalyticsRepository>();
+        services.AddScoped<IBenefitAnalyticsRepository, BenefitAnalyticsRepository>();
+        services.AddScoped<IBenefitAnalyticsService, BenefitAnalyticsService>();
 
-                services.AddScoped<IBenefitLevelAutomationRepository, BenefitLevelAutomationRepository>();
+        services.AddScoped<IBenefitLevelAutomationRepository, BenefitLevelAutomationRepository>();
+        services.AddScoped<IBenefitLevelAutomationService, BenefitLevelAutomationService>();
 
-                services.AddScoped<IBenefitAnalyticsService, BenefitAnalyticsService>();
-
-                services.AddScoped<IBenefitLevelAutomationService, BenefitLevelAutomationService>();
-
-                services.AddScoped<IBenefitLookupRepository, BenefitLookupRepository>();
-
-                services.AddScoped<IBenefitLookupService, BenefitLookupService>();
+        services.AddScoped<IBenefitLookupRepository, BenefitLookupRepository>();
+        services.AddScoped<IBenefitLookupService, BenefitLookupService>();
+        services.AddScoped<IConfirmationTokenService, ConfirmationTokenService>();
 
         return services;
     }

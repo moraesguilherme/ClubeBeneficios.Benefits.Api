@@ -1,9 +1,9 @@
 using FluentValidation;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
 
 namespace ClubeBeneficios.Benefits.Api.Validators;
 
-public class ReviewBenefitRequestValidator : AbstractValidator<ReviewBenefitRequest>
+public class ReviewBenefitRequestValidator : AbstractValidator<ReviewBenefitOfferRequest>
 {
     public ReviewBenefitRequestValidator()
     {

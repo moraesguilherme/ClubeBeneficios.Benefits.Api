@@ -1,25 +1,50 @@
-using ClubeBeneficios.Benefits.Domain.Dtos;
-using ClubeBeneficios.Benefits.Domain.Dtos.Filters;
-using ClubeBeneficios.Benefits.Domain.Dtos.Requests;
+using ClubeBeneficios.Benefits.Domain.Dtos.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Common;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Benefits;
+using ClubeBeneficios.Benefits.Domain.Dtos.Requests.Filters;
 
 namespace ClubeBeneficios.Benefits.Domain.Services;
 
 public interface IBenefitService
 {
-    Task<PagedResultDto<BenefitListItemDto>> GetAdminPagedAsync(BenefitFilterDto filter, CancellationToken cancellationToken = default);
-    Task<PagedResultDto<BenefitListItemDto>> GetPartnerPagedAsync(BenefitFilterDto filter, CancellationToken cancellationToken = default);
-    Task<PagedResultDto<BenefitApprovalQueueItemDto>> GetApprovalQueueAsync(BenefitFilterDto filter, CancellationToken cancellationToken = default);
-    Task<BenefitSummaryDto> GetAdminSummaryAsync(CancellationToken cancellationToken = default);
-    Task<BenefitSummaryDto> GetPartnerSummaryAsync(CancellationToken cancellationToken = default);
-    Task<BenefitFilterOptionsDto> GetAdminFilterOptionsAsync(CancellationToken cancellationToken = default);
-    Task<BenefitFilterOptionsDto> GetPartnerFilterOptionsAsync(CancellationToken cancellationToken = default);
-    Task<BenefitDetailsDto?> GetAdminByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<BenefitDetailsDto?> GetPartnerByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<Guid> CreateAdminAsync(CreateBenefitRequest request, CancellationToken cancellationToken = default);
-    Task<Guid> CreatePartnerAsync(CreateBenefitRequest request, CancellationToken cancellationToken = default);
-    Task UpdateAdminAsync(Guid id, UpdateBenefitRequest request, CancellationToken cancellationToken = default);
-    Task UpdatePartnerAsync(Guid id, UpdateBenefitRequest request, CancellationToken cancellationToken = default);
-    Task ChangeAdminStatusAsync(Guid id, ChangeBenefitStatusRequest request, CancellationToken cancellationToken = default);
-    Task ChangePartnerStatusAsync(Guid id, ChangeBenefitStatusRequest request, CancellationToken cancellationToken = default);
-    Task AddAdminReviewAsync(Guid id, ReviewBenefitRequest request, CancellationToken cancellationToken = default);
+    // TODO: Criar camada específica para visão partner.
+    // Os métodos atuais atendem o fluxo administrativo.
+    // Antes de liberar a visão partner em produção, implementar métodos com filtro obrigatório por partnerId,
+    // incluindo listagem, resumo, filtros, detalhe, criação, edição e alteração de status dentro do escopo do parceiro autenticado.
+    Task<PagedResultDto<BenefitOfferListItemDto>> GetPagedAsync(
+        BenefitFilterDto filter,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResultDto<BenefitOfferApprovalItemDto>> GetPendingAsync(
+        BenefitFilterDto filter,
+        CancellationToken cancellationToken = default);
+
+    Task<BenefitOfferDashboardSummaryDto> GetDashboardSummaryAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<BenefitOfferFilterOptionsDto> GetFilterOptionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<BenefitOfferDetailsDto?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task<Guid> CreateAsync(
+        CreateBenefitOfferRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> UpdateAsync(
+        Guid id,
+        UpdateBenefitOfferRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> ChangeStatusAsync(
+        Guid id,
+        ChangeBenefitOfferStatusRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> AddReviewAsync(
+        Guid id,
+        AddBenefitOfferReviewRequest request,
+        CancellationToken cancellationToken = default);
 }
