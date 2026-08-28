@@ -7,10 +7,6 @@ namespace ClubeBeneficios.Benefits.Domain.Services;
 
 public interface IBenefitService
 {
-    // TODO: Criar camada específica para visão partner.
-    // Os métodos atuais atendem o fluxo administrativo.
-    // Antes de liberar a visão partner em produção, implementar métodos com filtro obrigatório por partnerId,
-    // incluindo listagem, resumo, filtros, detalhe, criação, edição e alteração de status dentro do escopo do parceiro autenticado.
     Task<PagedResultDto<BenefitOfferListItemDto>> GetPagedAsync(
         BenefitFilterDto filter,
         CancellationToken cancellationToken = default);
@@ -33,9 +29,22 @@ public interface IBenefitService
         CreateBenefitOfferRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<Guid> CreatePartnerAsync(
+        CreateBenefitOfferRequest request,
+        Guid partnerId,
+        Guid? createdByUserId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> UpdateAsync(
         Guid id,
         UpdateBenefitOfferRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> UpdatePartnerAsync(
+        Guid id,
+        UpdateBenefitOfferRequest request,
+        Guid partnerId,
+        Guid? updatedByUserId,
         CancellationToken cancellationToken = default);
 
     Task<bool> ChangeStatusAsync(

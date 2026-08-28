@@ -1,14 +1,15 @@
 using System.Data;
-using Dapper;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using ClubeBeneficios.Benefits.Domain.Options;
 using ClubeBeneficios.Benefits.Domain.Repositories;
 using ClubeBeneficios.Benefits.Domain.Security;
 using ClubeBeneficios.Benefits.Domain.Services;
 using ClubeBeneficios.Benefits.Infrastructure.Authentication;
 using ClubeBeneficios.Benefits.Infrastructure.Repositories;
 using ClubeBeneficios.Benefits.Infrastructure.Services;
+using Dapper;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ClubeBeneficios.Benefits.Infrastructure.DependencyInjection;
 
@@ -27,6 +28,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDbConnection>(_ =>
             new SqlConnection(configuration.GetConnectionString("DefaultConnection")));
 
+        services.Configure<FileStorageOptions>(
+            configuration.GetSection("FileStorage"));
+
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
         services.AddScoped<IBenefitRepository, BenefitRepository>();
         services.AddScoped<IBenefitService, BenefitService>();
 
@@ -44,7 +50,11 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IBenefitLookupRepository, BenefitLookupRepository>();
         services.AddScoped<IBenefitLookupService, BenefitLookupService>();
+
         services.AddScoped<IConfirmationTokenService, ConfirmationTokenService>();
+
+        services.AddScoped<IPublicPartnerCatalogRepository, PublicPartnerCatalogRepository>();
+        services.AddScoped<IPublicPartnerCatalogService, PublicPartnerCatalogService>();
 
         return services;
     }

@@ -115,17 +115,19 @@ public class BenefitsPartnerController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create(
-        [FromBody] CreateBenefitOfferRequest request,
-        CancellationToken cancellationToken)
+    [FromBody] CreateBenefitOfferRequest request,
+    CancellationToken cancellationToken)
     {
         var partnerId = GetPartnerId();
 
         if (partnerId is null)
             return Unauthorized();
 
-        request.PartnerId = partnerId;
-
-        var id = await _benefitService.CreateAsync(request, cancellationToken);
+        var id = await _benefitService.CreatePartnerAsync(
+            request,
+            partnerId.Value,
+            _currentUser.UserId,
+            cancellationToken);
 
         return CreatedAtAction(
             nameof(GetById),
@@ -135,28 +137,40 @@ public class BenefitsPartnerController : ControllerBase
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(
-        [FromRoute] Guid id,
-        [FromBody] UpdateBenefitOfferRequest request,
-        CancellationToken cancellationToken)
+    Guid id,
+    [FromBody] UpdateBenefitOfferRequest request,
+    CancellationToken cancellationToken)
     {
         var partnerId = GetPartnerId();
 
         if (partnerId is null)
             return Unauthorized();
 
-        var current = await _benefitService.GetByIdAsync(id, cancellationToken);
+        try
+        {
+            var updated = await _benefitService.UpdatePartnerAsync(
+                id,
+                request,
+                partnerId.Value,
+                _currentUser.UserId,
+                cancellationToken);
 
-        if (current is null)
-            return NotFound();
+            if (!updated)
+                return NotFound();
 
-        if (current.PartnerId != partnerId)
-            return NotFound();
-
-        request.PartnerId = partnerId;
-
-        var success = await _benefitService.UpdateAsync(id, request, cancellationToken);
-
-        return success ? NoContent() : NotFound();
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
 
     [HttpPut("{id:guid}/status")]

@@ -47,11 +47,88 @@ public class BenefitService : IBenefitService
         CancellationToken cancellationToken = default)
         => _benefitRepository.CreateAsync(request, cancellationToken);
 
+    public Task<Guid> CreatePartnerAsync(
+    CreateBenefitOfferRequest request,
+    Guid partnerId,
+    Guid? createdByUserId,
+    CancellationToken cancellationToken = default)
+    {
+        request.PartnerId = partnerId;
+        request.CreatedByUserId = createdByUserId;
+
+        request.Status = "pending_review";
+
+        request.HighlightInShowcase = false;
+
+        if (request.Direction == "matilha_to_partner")
+        {
+            request.RequiresAccessCode = true;
+            request.CodeValidationMode = "partner_code";
+
+            if (request.EligibilityType == "open")
+            {
+                request.EligibilityType = "code";
+            }
+        }
+
+        return _benefitRepository.CreateAsync(request, cancellationToken);
+    }
+
     public Task<bool> UpdateAsync(
         Guid id,
         UpdateBenefitOfferRequest request,
         CancellationToken cancellationToken = default)
         => _benefitRepository.UpdateAsync(id, request, cancellationToken);
+
+    public async Task<bool> UpdatePartnerAsync(
+        Guid id,
+        UpdateBenefitOfferRequest request,
+        Guid partnerId,
+        Guid? updatedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var current = await _benefitRepository.GetByIdAsync(id, cancellationToken);
+
+        if (current is null)
+            return false;
+
+        if (current.PartnerId != partnerId)
+            throw new UnauthorizedAccessException("Este benefício não pertence ao parceiro autenticado.");
+
+        var editableStatuses = new[]
+            {
+                "draft",
+                "pending_review",
+                "under_review",
+                "rejected"
+            };
+
+        if (!editableStatuses.Contains(current.Status))
+        {
+            throw new InvalidOperationException(
+                "Este benefício não pode ser editado pelo parceiro no status atual.");
+        }
+
+        request.PartnerId = partnerId;
+        request.UpdatedByUserId = updatedByUserId;
+
+        request.Status = "pending_review";
+
+        request.HighlightInShowcase = false;
+
+        if (request.Direction == "matilha_to_partner")
+        {
+            request.RequiresAccessCode = true;
+            request.CodeValidationMode = "partner_code";
+
+            if (request.EligibilityType == "open")
+            {
+                request.EligibilityType = "code";
+            }
+        }
+
+        return await _benefitRepository.UpdateAsync(id, request, cancellationToken);
+    }
 
     public Task<bool> ChangeStatusAsync(
         Guid id,
