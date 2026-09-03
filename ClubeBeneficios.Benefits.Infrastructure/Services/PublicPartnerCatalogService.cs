@@ -213,4 +213,30 @@ public class PublicPartnerCatalogService : IPublicPartnerCatalogService
             reason,
             cancellationToken);
     }
+
+    public Task<PublicBenefitRequestCorrectionDto?> GetCorrectionByTokenAsync(
+    string token,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return Task.FromResult<PublicBenefitRequestCorrectionDto?>(null);
+
+        return _repository.GetCorrectionByTokenAsync(
+            token.Trim(),
+            cancellationToken);
+    }
+
+    public Task<PublicBenefitRequestCorrectionSubmittedDto> SubmitCorrectionAsync(
+        string token,
+        string? customerNotes,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ArgumentException("Link de ajuste inválido.");
+
+        return _repository.SubmitCorrectionAsync(
+            token.Trim(),
+            customerNotes,
+            cancellationToken);
+    }
 }

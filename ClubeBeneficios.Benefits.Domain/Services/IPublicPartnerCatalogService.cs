@@ -49,4 +49,13 @@ public interface IPublicPartnerCatalogService
         string eventType,
         string? reason = null,
         CancellationToken cancellationToken = default);
+
+    Task<PublicBenefitRequestCorrectionDto?> GetCorrectionByTokenAsync(
+        string token,
+        CancellationToken cancellationToken = default);
+
+    Task<PublicBenefitRequestCorrectionSubmittedDto> SubmitCorrectionAsync(
+        string token,
+        string? customerNotes,
+        CancellationToken cancellationToken = default);
 }

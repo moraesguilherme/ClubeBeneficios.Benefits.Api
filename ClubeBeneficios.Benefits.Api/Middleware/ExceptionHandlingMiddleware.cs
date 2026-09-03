@@ -169,6 +169,8 @@ public class ExceptionHandlingMiddleware
             Instance = context.Request.Path
         };
 
+        problem.Extensions["message"] = problem.Detail;
+
         if (_environment.IsDevelopment())
         {
             problem.Extensions["exceptionType"] = exception.GetType().Name;

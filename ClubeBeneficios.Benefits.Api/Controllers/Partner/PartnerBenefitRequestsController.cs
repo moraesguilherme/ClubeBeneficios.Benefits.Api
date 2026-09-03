@@ -37,6 +37,9 @@ public class PartnerBenefitRequestsController : ControllerBase
         if (partnerId is null)
             return Unauthorized();
 
+        filter.PartnerId = partnerId;
+        filter.RequesterType = "partner_customer";
+
         var result = await _service.SearchPartnerAsync(filter, cancellationToken);
 
         return Ok(result.ToPartnerPagedResult());

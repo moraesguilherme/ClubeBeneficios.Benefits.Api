@@ -261,4 +261,15 @@ internal static class BenefitContractMapper
             CodeValidationMode = codeValidationMode
         };
     }
+
+    public static string NormalizeUsageScope(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "customer_pet" => "customer_pet",
+            "pet" => "customer_pet",
+            "customer" => "customer",
+            _ => "customer"
+        };
+    }
 }

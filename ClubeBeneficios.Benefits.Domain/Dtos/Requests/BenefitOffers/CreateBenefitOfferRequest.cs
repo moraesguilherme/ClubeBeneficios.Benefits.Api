@@ -41,6 +41,8 @@ public class CreateBenefitOfferRequest
     public Guid? SpecificAccessCodeId { get; set; }
     public string? CodeValidationMode { get; set; }
 
+    public string? UsageScope { get; set; }
+
     public string? RecurrenceType { get; set; }
     public int? RecurrenceValue { get; set; }
     public string? RecurrencePeriod { get; set; }

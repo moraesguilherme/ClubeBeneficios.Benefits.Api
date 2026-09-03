@@ -2,6 +2,8 @@
 using Dapper;
 using ClubeBeneficios.Benefits.Domain.Dtos.PublicCatalog;
 using ClubeBeneficios.Benefits.Domain.Repositories;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ClubeBeneficios.Benefits.Infrastructure.Repositories;
 
@@ -334,5 +336,215 @@ public class PublicPartnerCatalogRepository : IPublicPartnerCatalogRepository
             parameters);
 
         await _connection.ExecuteAsync(command);
+    }
+
+    public async Task<PublicBenefitRequestCorrectionDto?> GetCorrectionByTokenAsync(
+    string token,
+    CancellationToken cancellationToken = default)
+    {
+        var tokenHash = HashToken(token);
+
+        const string sql = @"
+        SELECT TOP 1
+            r.id AS request_id,
+            r.benefit_id,
+            r.partner_id,
+            r.requester_partner_customer_id AS partner_customer_id,
+            r.requester_partner_customer_pet_id AS partner_customer_pet_id,
+
+            b.title AS benefit_title,
+            p.trade_name AS partner_name,
+
+            pc.full_name AS requester_name,
+            pc.email AS requester_email,
+            pc.phone AS requester_phone,
+
+            pcp.name AS pet_name,
+            pcp.breed AS pet_breed,
+            pcp.sex AS pet_sex,
+            pcp.age_months AS pet_age_months,
+            pcp.size AS pet_size,
+            pcp.is_neutered AS pet_is_neutered,
+
+            r.request_status,
+            CASE
+                WHEN r.request_status = 'under_review' THEN 'Ajuste solicitado'
+                WHEN r.request_status = 'pending_review' THEN 'Pendente de análise'
+                WHEN r.request_status = 'approved' THEN 'Aprovada'
+                WHEN r.request_status IN ('declined', 'rejected') THEN 'Reprovada'
+                ELSE r.request_status
+            END AS request_status_label,
+
+            latest_review.review_point,
+            latest_review.review_recommendation,
+
+            COALESCE(brd.file_url, pcd.file_url) AS vaccination_card_file_url,
+            COALESCE(brd.file_name, pcd.file_name) AS vaccination_card_file_name,
+
+            dw.brand_name AS dewormer_brand_name,
+            dw.applied_at AS dewormer_applied_at,
+            dw.expires_at AS dewormer_expires_at,
+
+            ft.brand_name AS flea_tick_brand_name,
+            ft.applied_at AS flea_tick_applied_at,
+            ft.expires_at AS flea_tick_expires_at
+        FROM dbo.benefit_request_correction_tokens t
+        INNER JOIN dbo.benefit_requests r
+            ON r.id = t.benefit_request_id
+        INNER JOIN dbo.benefits b
+            ON b.id = r.benefit_id
+        INNER JOIN dbo.partners p
+            ON p.id = r.partner_id
+        INNER JOIN dbo.partner_customers pc
+            ON pc.id = r.requester_partner_customer_id
+        LEFT JOIN dbo.partner_customer_pets pcp
+            ON pcp.id = r.requester_partner_customer_pet_id
+
+        OUTER APPLY
+        (
+            SELECT TOP 1
+                rr.review_point,
+                rr.review_recommendation
+            FROM dbo.benefit_request_reviews rr
+            WHERE rr.benefit_request_id = r.id
+            ORDER BY rr.reviewed_at DESC, rr.created_at DESC
+        ) latest_review
+
+        LEFT JOIN dbo.benefit_request_documents brd
+            ON brd.benefit_request_id = r.id
+           AND brd.document_type = 'vaccination_card'
+
+        LEFT JOIN dbo.partner_customer_documents pcd
+            ON pcd.id = brd.partner_customer_document_id
+
+        LEFT JOIN dbo.benefit_request_preventives dw
+            ON dw.benefit_request_id = r.id
+           AND dw.preventive_type = 'dewormer'
+
+        LEFT JOIN dbo.benefit_request_preventives ft
+            ON ft.benefit_request_id = r.id
+           AND ft.preventive_type = 'flea_tick'
+
+        WHERE t.token_hash = @TokenHash
+          AND t.status = 'active'
+          AND t.expires_at > SYSUTCDATETIME()
+          AND r.request_status = 'under_review';";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("@TokenHash", tokenHash);
+
+        var command = new CommandDefinition(
+            sql,
+            parameters,
+            cancellationToken: cancellationToken);
+
+        return await _connection.QueryFirstOrDefaultAsync<PublicBenefitRequestCorrectionDto>(command);
+    }
+
+    public async Task<PublicBenefitRequestCorrectionSubmittedDto> SubmitCorrectionAsync(
+        string token,
+        string? customerNotes,
+        CancellationToken cancellationToken = default)
+    {
+        var tokenHash = HashToken(token);
+
+        const string sql = @"
+        DECLARE
+            @TokenId UNIQUEIDENTIFIER,
+            @BenefitRequestId UNIQUEIDENTIFIER;
+
+        SELECT TOP 1
+            @TokenId = t.id,
+            @BenefitRequestId = t.benefit_request_id
+        FROM dbo.benefit_request_correction_tokens t
+        INNER JOIN dbo.benefit_requests r
+            ON r.id = t.benefit_request_id
+        WHERE t.token_hash = @TokenHash
+          AND t.status = 'active'
+          AND t.expires_at > SYSUTCDATETIME()
+          AND r.request_status = 'under_review';
+
+        IF @TokenId IS NULL OR @BenefitRequestId IS NULL
+        BEGIN
+            THROW 51000, 'Link de ajuste inválido, expirado ou já utilizado.', 1;
+        END;
+
+        UPDATE dbo.benefit_requests
+        SET
+            request_status = 'pending_review',
+            approval_status = 'pending_review',
+            approval_requested_at = SYSUTCDATETIME(),
+            review_required = 1,
+            review_notes = @CustomerNotes,
+            updated_at = SYSUTCDATETIME()
+        WHERE id = @BenefitRequestId;
+
+        UPDATE dbo.benefit_request_correction_tokens
+        SET
+            status = 'used',
+            used_at = SYSUTCDATETIME(),
+            updated_at = SYSUTCDATETIME()
+        WHERE id = @TokenId;
+
+        INSERT INTO dbo.benefit_request_timeline_events
+        (
+            id,
+            benefit_request_id,
+            event_type,
+            event_status,
+            event_point,
+            event_description,
+            actor_user_id,
+            occurred_at,
+            created_at
+        )
+        VALUES
+        (
+            NEWID(),
+            @BenefitRequestId,
+            'health_submitted',
+            'pending_review',
+            'health_documents',
+            COALESCE(NULLIF(LTRIM(RTRIM(@CustomerNotes)), ''), 'Solicitante reenviou os ajustes solicitados.'),
+            NULL,
+            SYSUTCDATETIME(),
+            SYSUTCDATETIME()
+        );
+
+        EXEC dbo.usp_benefit_request_notification_enqueue
+            @BenefitRequestId = @BenefitRequestId,
+            @EventType = 'benefits.request.submitted.admin',
+            @ReviewPoint = 'health_documents',
+            @ReviewRecommendation = 'Solicitante reenviou os ajustes solicitados.',
+            @EventReferenceId = @TokenId;
+
+        SELECT
+            @BenefitRequestId AS request_id,
+            'pending_review' AS request_status,
+            'pending_review' AS approval_status,
+            'Ajustes reenviados com sucesso. A solicitação voltou para análise da Matilha.' AS message;";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("@TokenHash", tokenHash);
+        parameters.Add("@CustomerNotes", Normalize(customerNotes));
+
+        var command = new CommandDefinition(
+            sql,
+            parameters,
+            commandTimeout: 60,
+            cancellationToken: cancellationToken);
+
+        return await _connection.QuerySingleAsync<PublicBenefitRequestCorrectionSubmittedDto>(command);
+    }
+
+    private static string HashToken(string token)
+    {
+        var normalizedToken = string.IsNullOrWhiteSpace(token)
+            ? string.Empty
+            : token.Trim();
+
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(normalizedToken));
+
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

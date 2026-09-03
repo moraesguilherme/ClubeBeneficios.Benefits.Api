@@ -19,6 +19,9 @@ public class BenefitOfferListItemDto
     public string? TargetActorType { get; set; }
     public string? TargetActorLabel { get; set; }
 
+    public string? UsageScope { get; set; }
+    public string? UsageScopeLabel { get; set; }
+
     public string? EligibilityType { get; set; }
     public string? EligibilitySummary { get; set; }
 

@@ -67,12 +67,19 @@ public class BenefitRepository : IBenefitRepository
                             b.eligibility_type AS EligibilityType,
                             CASE
                                 WHEN b.eligibility_type = 'open' THEN 'Elegibilidade aberta'
-                                WHEN b.eligibility_type = 'level' THEN 'Elegibilidade por nÃ­vel'
+                                WHEN b.eligibility_type = 'level' THEN 'Elegibilidade por nível'
                                 WHEN b.eligibility_type = 'behavior' THEN 'Elegibilidade por comportamento'
-                                WHEN b.eligibility_type = 'code' THEN 'Elegibilidade por cÃ³digo'
-                                WHEN b.eligibility_type = 'hybrid' THEN 'Elegibilidade hÃ­brida'
+                                WHEN b.eligibility_type = 'code' THEN 'Elegibilidade por código'
+                                WHEN b.eligibility_type = 'hybrid' THEN 'Elegibilidade híbrida'
                                 ELSE b.eligibility_type
                             END AS EligibilitySummary,
+
+                            bt.usage_scope AS UsageScope,
+                            CASE
+                                WHEN bt.usage_scope = 'customer_pet' THEN 'Por cão'
+                                ELSE 'Por cliente'
+                            END AS UsageScopeLabel,
+
                             bt.recurrence_type AS RecurrenceType,
                             bt.recurrence_period AS RecurrencePeriod,
                             CASE
@@ -185,12 +192,19 @@ public class BenefitRepository : IBenefitRepository
                             bt.eligibility_type AS EligibilityType,
                             CASE
                                 WHEN bt.eligibility_type = 'open' THEN 'Elegibilidade aberta'
-                                WHEN bt.eligibility_type = 'level' THEN 'Elegibilidade por nÃ­vel'
+                                WHEN bt.eligibility_type = 'level' THEN 'Elegibilidade por nível'
                                 WHEN bt.eligibility_type = 'behavior' THEN 'Elegibilidade por comportamento'
-                                WHEN bt.eligibility_type = 'code' THEN 'Elegibilidade por cÃ³digo'
-                                WHEN bt.eligibility_type = 'hybrid' THEN 'Elegibilidade hÃ­brida'
+                                WHEN bt.eligibility_type = 'code' THEN 'Elegibilidade por código'
+                                WHEN bt.eligibility_type = 'hybrid' THEN 'Elegibilidade híbrida'
                                 ELSE bt.eligibility_type
                             END AS EligibilitySummary,
+
+                            bt.usage_scope AS UsageScope,
+                            CASE
+                                WHEN bt.usage_scope = 'customer_pet' THEN 'Por cão'
+                                ELSE 'Por cliente'
+                            END AS UsageScopeLabel,
+
                             bt.auto_activate_when_approved AS AutoActivateWhenApproved,
                             bt.requires_manual_release AS RequiresManualRelease,
                             bt.highlight_in_showcase AS HighlightInShowcase,
@@ -309,6 +323,7 @@ public class BenefitRepository : IBenefitRepository
                                     WHEN b.eligibility_type = 'hybrid' THEN 'Elegibilidade hÃ­brida'
                                     ELSE b.eligibility_type
                                 END AS EligibilitySummary,
+                                b.usage_scope AS UsageScope,
                                 b.recurrence_type AS RecurrenceType,
                                 b.recurrence_value AS RecurrenceLimit,
                                 b.recurrence_period AS RecurrencePeriod,
@@ -515,6 +530,7 @@ public class BenefitRepository : IBenefitRepository
         parameters.Add("AllowAnyActivePartnerCode", request.AllowAnyActivePartnerCode);
         parameters.Add("SpecificAccessCodeId", request.SpecificAccessCodeId);
         parameters.Add("CodeValidationMode", string.IsNullOrWhiteSpace(request.CodeValidationMode) ? "partner_code" : request.CodeValidationMode);
+        parameters.Add("UsageScope", BenefitContractMapper.NormalizeUsageScope(request.UsageScope));
         parameters.Add("RecurrenceType", BenefitContractMapper.NormalizeRecurrenceType(request.RecurrenceType));
         parameters.Add("RecurrenceValue", request.RecurrenceValue);
         parameters.Add("RecurrencePeriod", request.RecurrencePeriod);
@@ -565,6 +581,7 @@ public class BenefitRepository : IBenefitRepository
         parameters.Add("AllowAnyActivePartnerCode", request.AllowAnyActivePartnerCode);
         parameters.Add("SpecificAccessCodeId", request.SpecificAccessCodeId);
         parameters.Add("CodeValidationMode", string.IsNullOrWhiteSpace(request.CodeValidationMode) ? "partner_code" : request.CodeValidationMode);
+        parameters.Add("UsageScope", BenefitContractMapper.NormalizeUsageScope(request.UsageScope));
         parameters.Add("RecurrenceType", BenefitContractMapper.NormalizeRecurrenceType(request.RecurrenceType));
         parameters.Add("RecurrenceValue", request.RecurrenceValue);
         parameters.Add("RecurrencePeriod", request.RecurrencePeriod);
