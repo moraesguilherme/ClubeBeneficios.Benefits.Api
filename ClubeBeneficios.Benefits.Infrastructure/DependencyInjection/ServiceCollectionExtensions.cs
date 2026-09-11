@@ -56,6 +56,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPublicPartnerCatalogRepository, PublicPartnerCatalogRepository>();
         services.AddScoped<IPublicPartnerCatalogService, PublicPartnerCatalogService>();
 
+        services.AddScoped<ICustomerBenefitService, CustomerBenefitService>();
+        services.AddScoped<ICustomerBenefitRepository, CustomerBenefitRepository>();
+
         return services;
     }
 }
