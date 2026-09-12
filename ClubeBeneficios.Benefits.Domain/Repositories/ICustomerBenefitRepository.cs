@@ -23,4 +23,27 @@ public interface ICustomerBenefitRepository
     Task<CustomerBenefitDetailDto?> GetByIdAsync(
         Guid benefitId,
         CancellationToken cancellationToken = default);
+
+    Task<PagedResultDto<CustomerBenefitRequestListItemDto>> GetRequestsByClientAsync(
+        Guid clientId,
+        int page,
+        int pageSize,
+        string? status,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResultDto<CustomerBenefitUsageListItemDto>> GetUsagesByClientAsync(
+        Guid clientId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomerBenefitRequestDetailDto?> GetRequestByIdForClientAsync(
+        Guid clientId,
+        Guid requestId,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomerBenefitUsageDetailDto?> GetUsageByIdForClientAsync(
+        Guid clientId,
+        Guid usageId,
+        CancellationToken cancellationToken = default);
 }

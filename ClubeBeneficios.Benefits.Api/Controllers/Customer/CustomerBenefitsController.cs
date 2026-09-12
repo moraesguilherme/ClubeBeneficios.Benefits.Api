@@ -60,4 +60,58 @@ public sealed class CustomerBenefitsController : ControllerBase
 
         return Ok(new { id });
     }
+
+    [HttpGet("requests")]
+    public async Task<ActionResult<PagedResultDto<CustomerBenefitRequestListItemDto>>> GetMyRequests(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 12,
+    [FromQuery] string? status = null,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _service.GetMyRequestsAsync(
+            page,
+            pageSize,
+            status,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("usages")]
+    public async Task<ActionResult<PagedResultDto<CustomerBenefitUsageListItemDto>>> GetMyUsages(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _service.GetMyUsagesAsync(
+            page,
+            pageSize,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("requests/{requestId:guid}")]
+    public async Task<ActionResult<CustomerBenefitRequestDetailDto>> GetMyRequestById(
+    Guid requestId,
+    CancellationToken cancellationToken)
+    {
+        var result = await _service.GetMyRequestByIdAsync(
+            requestId,
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("usages/{usageId:guid}")]
+    public async Task<ActionResult<CustomerBenefitUsageDetailDto>> GetMyUsageById(
+        Guid usageId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.GetMyUsageByIdAsync(
+            usageId,
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
+    }
 }

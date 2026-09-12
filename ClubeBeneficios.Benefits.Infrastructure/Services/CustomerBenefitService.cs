@@ -57,15 +57,7 @@ public sealed class CustomerBenefitService : ICustomerBenefitService
         }
 
         var userId = _currentUser.UserId.Value;
-
-        var clientId = await _repository.GetClientIdByUserIdAsync(
-            userId,
-            cancellationToken);
-
-        if (!clientId.HasValue)
-        {
-            throw new InvalidOperationException("Não foi encontrado cliente Matilha vinculado ao usuário autenticado.");
-        }
+        var clientId = await ResolveClientIdAsync(cancellationToken);
 
         var benefit = await _repository.GetByIdAsync(
             benefitId,
@@ -84,7 +76,7 @@ public sealed class CustomerBenefitService : ICustomerBenefitService
         if (request.PetId.HasValue)
         {
             var petBelongsToClient = await _repository.ClientPetBelongsToClientAsync(
-                clientId.Value,
+                clientId,
                 request.PetId.Value,
                 cancellationToken);
 
@@ -99,7 +91,7 @@ public sealed class CustomerBenefitService : ICustomerBenefitService
             BenefitId = benefitId,
             RequesterType = "client",
             RequesterUserId = userId,
-            RequesterClientId = clientId.Value,
+            RequesterClientId = clientId,
             RequestedByUserId = userId,
 
             PetSourceType = request.PetId.HasValue ? "client_pet" : null,
@@ -115,6 +107,79 @@ public sealed class CustomerBenefitService : ICustomerBenefitService
 
         return await _benefitRequestService.CreateAsync(
             createRequest,
+            cancellationToken);
+    }
+
+    public async Task<PagedResultDto<CustomerBenefitRequestListItemDto>> GetMyRequestsAsync(
+        int page = 1,
+        int pageSize = 12,
+        string? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        var clientId = await ResolveClientIdAsync(cancellationToken);
+
+        return await _repository.GetRequestsByClientAsync(
+            clientId,
+            page,
+            pageSize,
+            status,
+            cancellationToken);
+    }
+
+    public async Task<PagedResultDto<CustomerBenefitUsageListItemDto>> GetMyUsagesAsync(
+        int page = 1,
+        int pageSize = 12,
+        CancellationToken cancellationToken = default)
+    {
+        var clientId = await ResolveClientIdAsync(cancellationToken);
+
+        return await _repository.GetUsagesByClientAsync(
+            clientId,
+            page,
+            pageSize,
+            cancellationToken);
+    }
+
+    private async Task<Guid> ResolveClientIdAsync(CancellationToken cancellationToken)
+    {
+        if (_currentUser.UserId is null)
+        {
+            throw new UnauthorizedAccessException("Usuário autenticado inválido ou não informado.");
+        }
+
+        var clientId = await _repository.GetClientIdByUserIdAsync(
+            _currentUser.UserId.Value,
+            cancellationToken);
+
+        if (!clientId.HasValue)
+        {
+            throw new InvalidOperationException("Não foi encontrado cliente Matilha vinculado ao usuário autenticado.");
+        }
+
+        return clientId.Value;
+    }
+
+    public async Task<CustomerBenefitRequestDetailDto?> GetMyRequestByIdAsync(
+        Guid requestId,
+        CancellationToken cancellationToken = default)
+    {
+        var clientId = await ResolveClientIdAsync(cancellationToken);
+
+        return await _repository.GetRequestByIdForClientAsync(
+            clientId,
+            requestId,
+            cancellationToken);
+    }
+
+    public async Task<CustomerBenefitUsageDetailDto?> GetMyUsageByIdAsync(
+        Guid usageId,
+        CancellationToken cancellationToken = default)
+    {
+        var clientId = await ResolveClientIdAsync(cancellationToken);
+
+        return await _repository.GetUsageByIdForClientAsync(
+            clientId,
+            usageId,
             cancellationToken);
     }
 }
